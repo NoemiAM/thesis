@@ -1,0 +1,421 @@
+\chapter{Simulation-based inference} \label{cha:sbi}
+	
+The purpose of this chapter is to complement the introduction by laying the foundations of the simulation-based statistical inference framework employed throughout the rest of the thesis. First, we highlight the main differences between simulation-based and likelihood-based approaches, underlining the opportunities that the former brings. We then provide a brief overview of traditional and neural network-based \gls*{sbi} implementations. Lastly, we focus on the specific algorithm that will be employed in the following chapters of this thesis, truncated marginal neural ratio estimation.
+
+
+\section{To likelihood-base or to simulation-base?}\label{sec:lbi-sbi}
+
+%\section{Bayesian analysis}\label{sec:lbi-bayes}
+
+In scientific analyses, inferring the probability distribution of model parameters $\param$ for a given observation $\data_0$ is a ubiquitous task. It is therefore important to begin this chapter by clearly clarifying the adopted definition of probability. Throughout this thesis, we will adopt a Bayesian view of probability. In the Bayesian paradigm, probability is a measure of plausibility and simply quantifies an observer belief about how well a quantity of interest can be measured.
+
+In a Bayesian learning paradigm, the posterior distribution for model parameters $\param$ follows from Bayes' theorem
+\begin{equation} \label{eq:sbi-Bayes}
+    p(\param\mid\data)=\cfrac{p(\data\mid\param)}{p(\data)} \, p(\param) \, ,
+\end{equation}
+where $p(\data\mid\param)$ is the likelihood of the data $\data$ for given parameters $\param$, $p(\param)$ is the prior probability distribution over the parameters, and $p(\data)$ is the evidence of the data.  
+As evident from Equation \eqref{eq:sbi-Bayes}, the Bayesian framework needs both an explicit formalization of the modeling assumptions, encoded by the likelihood, and an explicit prior knowledge associated with each learnable parameter of the model, encoded by the prior. %It acknowledges that learning a model is a subjective task. Occam’s razor says we should always favour the simplest of potential explanations. The Bayesian approach may naturally handle this principle by attributing higher plausibility to simpler model instantiations.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\linewidth]{TikZ/lbi_vs_sbi.pdf}
+	\caption{\emph{Likelihood-based} inference algorithms rely on the evaluated likelihood  $L_{\data_0}(\param) $, which is a single scalar that quantifies closeness to the observation $\data_0$. \emph{Simulation-based} inference algorithms learn a function that can be evaluated on many different observations $\data_0$, determining their optimal distance measures case by case. Diagram credits: Christoph Weniger.}
+	\label{fig:SBIvsLBI}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.9\linewidth]{TikZ/curse_of_dim.pdf}
+	\caption{Simplified comparison of likelihood-based and simulation-based algorithms in the space of number of required simulations versus number of model parameters. In general, the simulation requirements of likelihood-based techniques grows significantly with the number of model parameters (curse of dimensionality). Instead, simulation-based inference techniques can, in principle, directly focus on estimating marginal posteriors for parameters of interest, independently of the total number of parameters. This reduces the need for parameter reduction techniques and enables the comparison of complex simulation results with complex data. The figure is adapted from Figure 4 in Ref.~\cite{Boddy:2022knd}.}
+    \label{fig:sbi-lbi-cost}
+\end{figure}
+ 
+Given this Bayesian setup, statistical inference is performed within the context of a probabilistic model $p(\data\mid\param)$, that can be in principle accessed by two different routes. On one hand, \gls*{lbi} algorithms rely on likelihood \underline{evaluations}, single scalars that quantify closeness to the observation $\data_0$. The main \gls*{lbi} tools to solve inverse problems for modern astrophysical and cosmological data analysis have been sampling-based inference methods like \gls*{mcmc} \citep{Metropolis:1953am, Hastings:1970aa} and nested sampling \citep{Skilling:2006gxv, Feroz:2008xx, Handley:2015fda} techniques. However, these methods often rely on approximate likelihoods, and the time needed to reach convergence scales poorly with the dimensionality of the explored parameter space. More modern methods are taking up this latter challenge, including gradient-based algorithms such as Hamiltonian Monte-Carlo~\citep{Duane:1987de}, or slice-sampling techniques~\citep{Neal:aa, Handley:2015fda}.
+
+On the other hand, \gls*{sbi} algorithms do not explicitly calculate the likelihood function, but instead rely on \underline{samples} from a stochastic simulator that  \emph{implicitly maps} model parameters $\param$ to data $\data$. This mapping is equivalent to sampling from the model distribution $\data \sim p(\data\mid\param)$, which is effectively an implicit representation of the likelihood. As a result, in this setting one just need a computational code that generates random samples from $p(\data\mid\param)$. For the purpose of this thesis, a \emph{simulator/forward model} is a computer program that takes as input a vector of parameters $\param \in \mathbb{R}^D$, samples a series of internal states or latent variables, and finally produces a data vector  $\data$  as output (usually our observable). Programs that involve random samplings and are interpreted as statistical models are known as probabilistic programs, and simulators are an example. In principle, using simulators allows for the simultaneous inclusion of all relevant processes that can affect the data, regardless of whether a full probabilistic description is tractable or not, as long as they can be efficiently programmed. In this context, \emph{intractability} means one of two things: a closed-form expression of the likelihood distribution is not available, or even if available it is computationally too expensive, \eg\ it scales exponentially with the number of parameters.
+
+The main differences between \gls*{sbi} and  \gls*{lbi} methods are summarized in Figure~\ref{fig:SBIvsLBI}. In both cases, we start with a data model, $p(\data\mid\param$), which describes the probability of data $\data$ given parameters $\param$. In the \gls*{lbi} case, the strategy is a detailed analysis of the likelihood function $L_{\data_0}(\param)$, given an observation $\data_0$. To this end, simplifying, the \gls*{lbi} algorithm will suggest points $\param$ where the likelihood will be evaluated, and try to focus on regions with high density. On the other hand, \gls*{sbi} techniques do \emph{not} require a tractable (see above) likelihood-density $p(\data_0\mid\param)$ at a specific observation $\data_0$. Instead, they rely on synthetic data samples from the likelihood function $\data \sim p(\data\mid\param)$, for a range of model parameters $\param$ that are in the simplest case drawn from the parameter priors, $\param \sim p(\param)$. % Essentially, simulation-based techniques are calibrated based on samples from the \emph{generative model} or \emph{joined distribution} $\data, \param \sim p(\data\mid\param)p(\param) \equiv p(\data, \param)$.  
+
+%While \gls*{lbi} produces results with maximal precision and usually the failure mode is over-confidence, the standard failure mode for \gls*{sbi} algorithms is under-confidence (provided correlations between $\data$ and $\param$ are fully identified).
+
+%Classical likelihood-based inference algorithms are problem-agnostic: their performance does not directly depend on the properties, dimensionality or shape of the data $\data \sim p(\data\mid\param)$ for different model parameters $\param$; instead it \textit{only} depends on the shape of the likelihood function as a function of $\param$ for a specific piece of observation $\data_0$, $p(\data_0\mid\param)$.  This is in stark difference to simulation-based, or likelihood-free, algorithms, where the performance of a given algorithm depends critically on how (simulated and real) data $\data$ is processed, interpreted and used.  On first sight, this suggests that simulation-based algorithms are in general more difficult to use, since there are more choices to make.  However, if properly used, simulation-based techniques offer a range of advantages over likelihood-based methods, which we group here into three dimensions, which are also illustrated in 
+
+While in principle the two frameworks converge to the same answer, when applied several practical differences emerge. We will highlight now two of the most striking disparities, but others will surface in the remaining sections of this chapter when the discussion becomes more technical.
+
+\noindent \textbf{Recyclable inference.} As highlighted in Figure~\ref{fig:SBIvsLBI}, the analysed observation $\data_0$ enters the statistical framework of \gls*{lbi} and \gls*{sbi} at different stages. In particular, \gls*{lbi} algorithms perform inference for a fixed observation $\data_0$, and must rerun from scratch for any another observation. It is thus computationally costly to perform new analysis and statistical test on the obtained results. On the other hand, we will see that \gls*{sbi} algorithms effectively learn an estimate of the probability density function that can be used to perform ``online" inference on any new data (as long as they stem from the same prior support). In this case, there is no need to rerun the whole pipeline for different observations, but just to re-evaluate the learned function on new data. Furthermore, statistical consistency tests can be performed rather quickly and efficiently. This aspect will be explored in Section~\ref{subsec:tmnre-test}.
+
+\noindent \textbf{Breaking the curse of dimensionality.} When using likelihood-based techniques, in order to solve \emph{one} inference problem, like obtaining samples for marginal posterior of interest, one has to solve \emph{all} of them (joint posterior estimate). The computational overhead of generating joint samples as an intermediate step of marginal inference can be enormous, and can quickly turn an apparently easy inference task, like the measurement of a single physical parameter, into an enormous challenge. These cases are not uncommon, and require problem specific care, like analytically performing parts of the marginal integrals.
+
+On the other hand, one key aspect of \gls*{sbi} algorithms in general is their ability to \emph{directly estimate marginal posteriors} for parameters of interest, instead of having to first estimate the joint posterior over all parameter space, and then marginalise out nuisance parameters. The possibility to directly estimate marginal probabilities effectively means that we can use \gls*{sbi} algorithms to break down large problems into smaller ones, while coherently accounting for the uncertainties coming from the rest of the parameter space (as further detailed in Section~\ref{subsec:tmnre-m}). This specificity makes SBI techniques extremely scalable and simulation efficient with respect to likelihood-based ones as a function of model parameters, as exemplified in Figure~\ref{fig:sbi-lbi-cost}. 
+
+\section{Background: the landscape of simulation-based inference} \label{sec:sbi}
+
+%Likelihood-free methods date back to at least Diggle and Gratton (1984) and Rubin (1984, p. 1160)
+%More recent examples:
+%Indirect Inference (Gourieroux and Ronchetti 1993);
+%Approximate Bayesian Computation (ABC) (a review is Marin et al. 2011);
+%bootstrap filter of Gordon, Salmond and Smith (1993) Synthetic Likelihoods method of Wood (2010)
+
+
+\paragraph{Traditional \gls*{sbi}} Turning more towards the history and development of \gls*{sbi}, the first well established classical technique was \emph{\gls*{abc}} \cite{Sisson:2018aa, Grazian:2019aa}. It is worth exploring in more details this algorithm, since it will serve us as the classical analogue of the \gls*{sbi} technique mostly employed throughout this thesis (see Section~\ref{sec:tmnre}). \Gls*{abc} is a rejection sampling algorithm where proposed samples $\data$ from the forward model are compared to the target observed data $\data_0$ with a hand-crafted distance measure based on some low-dimensional summary statistics $s(\data)$, as for example
+\begin{equation}
+    d(\data, \data_0)  = \mid\mid s(\data) - s(\data_0)\mid\mid\;.
+\end{equation}
+Samples from the approximate posterior are drawn with rejection sampling using an acceptance tolerance $\epsilon$ such that samples satisfy $d(\data, \data_0) < \epsilon$.
+Hence the posterior
+\begin{equation}
+    p_\text{ABC}(\param\mid\data) = \frac
+    {\int_{d(\data_0, \data) < \epsilon} d\data\, p(\param\mid\data)p(\data)}
+    {\int_{d(\data_0, \data) < \epsilon} d\data\, p(\data)} \;
+\end{equation}
+converges to the true one for $\epsilon \to 0$, $p_\text{ABC}(\param\mid\data) \xrightarrow{\epsilon \to 0} p(\param\mid\data)$.
+The explicit disadvantages of \gls*{abc} are evident from this brief description. First, it requires hand-crafted distance measures $d(\data, \data_0)$ over summary statistics $s(\data)$ to compare simulations to the data, which may not contain all the information available in the data. Second, it also typically requires a relatively large -- \eg~as compared to other traditional methods -- simulation budget to reach convergence, due to low acceptance rates in high dimensions for $\epsilon \to 0$. These challenges are tackled in modern \gls*{sbi} algorithms thanks to machine learning advances. 
+
+\paragraph{Neural \gls*{sbi}} Moving beyond this classical \gls*{sbi} approach, in recent years, a number of new \emph{neural network-based \gls*{sbi}} techniques have been proposed. This is largely thanks to the advances in deep learning and automatic differentiation which have allowed for the processing of significantly more complex data structures (such as images), as well as the efficient optimisation of parametric functions (here, neural networks) with respect to some custom loss. Bayes' theorem (Equation~\eqref{eq:sbi-Bayes}) hints at a few different approaches for the implementation of neural \gls*{sbi} algorithms, as reviewed in Refs.~\cite{Cranmer:2019eaq, Lueckmann:2021aa}. 
+
+
+%Broadly, the taxonomy of neural \gls*{sbi} algorithms include neural posterior estimation (NPE) which employs density estimation techniques to directly estimate the posterior $p(\param\mid\data)$ \citep{Papamakarios:2016ctj, Greenberg:2019aa}; neural likelihood estimation (NLE) which instead uses density estimation to learn an approximation to the likelihood $p(\data\mid\param)$ \citep{Papamakarios:2018aa}; and neural ratio estimation (NRE) \citep{Hermans:2019ioj,Miller:2020hua} which uses classifiers to approximate the likelihood-to-evidence or posterior-to-prior ratio $\frac{p(\data\mid\param)}{p(\data)}=\frac{p(\param\mid\data)}{p(\param)}$. In this thesis we will focus on the latter and its extensions.
+
+For example, one possible choice is \emph{\gls*{npe}} \citep{Papamakarios:2016ctj, Greenberg:2019aa}, where one introduces a density estimator $q_\Phi(\param\mid\data)$, parametrized through the weights $\Phi$, which is trained to approximate the posterior for parameters $\param$ given data $\data$,
+\begin{equation}
+    q^\text{NPE}_\Phi(\param \mid \data) \approx p(\param\mid\data)\;.
+\end{equation}
+A common loss function used in this context is the forward Kullback-Leibler divergence~\cite{Kullback:1951zyt},
+\begin{equation} \label{eq:kld}
+    D_{KL}(p \mid\mid q) = \sum_{x} p(x) \log\left(\frac{p(x)}{q(x)}\right) \;.
+\end{equation}
+Application of this loss function requires that the density estimator is normalized to one, $\int \dd\param\ q^\text{NPE}_\Phi(\param \mid \data)=1$, , which can be guaranteed by using specific network architectures like normalizing flows~\cite{papamakarios2021normalizing}.
+
+Another choice is to perform \emph{\gls*{nle}} \citep{Papamakarios:2018aa}, where one trains an estimator for the likelihood probability density of the data $\data$ given some model parameters $\param$, 
+\begin{equation}
+    q^\text{NLE}_\Phi(\data \mid \param) \approx p(\data\mid\param)\;.
+\end{equation}
+Again, specialized network architectures are typically employed to guarantee that $q_\Phi(\data \mid \param)$ is a properly normalized density function.
+
+In this broad taxonomy, Bayes' theorem hints at a last quantity that can be estimated, the likelihood-to-evidence or posterior-to-prior ratio 
+\begin{equation}
+	r(\param;\data)\approx\frac{p(\data\mid\param)}{p(\data)}=\frac{p(\param\mid\data)}{p(\param)}\; .
+\end{equation}
+This quantity is approximated using binary classification in \emph{\gls*{nre}}.
+In this case, the ratio does not need to be normalized, hence one is free to use any neural network architecture. %, since there is no need to enforce normalization. 
+In this thesis we will focus on this last algorithm and its extensions.
+
+\paragraph*{Active learning} The taxonomy of \gls*{sbi} algorithms can be refined further based on whether they use some form of {active learning} to guide the simulator towards parts of the parameter space that are most relevant for a specific target observation $\data_0$. In particular, \emph{sequential} \gls*{sbi} approaches adaptively choose informative simulations by using sequentially refined proposal distributions for the model parameters. They have been reported to outperform and be more simulation-efficient with respect to non-sequential ones across a number of different benchmark tasks \citep{Lueckmann:2021aa} and, \eg, in cosmology \cite{Cole:2021gwr}, in gravitational waves astrophysics \cite{Bhardwaj:2023xph}, and in strong lensing analysis \cite{wagnercarena2024strong}. 
+
+The core intuition behind sequential \gls*{sbi} algorithms is the following: given a single observation of interest, $\data_0$, sampling parameters from the entire prior space to generate training data may not be efficient, since it leads to training data $(\data, \param)$ that has significant variance compared to the target observation $\data_0$. Therefore, for a fixed simulation budget, the training samples contain only limited information about the posterior $p(\param\mid\data_0)$. The alternative proposed by sequential algorithms, in order to increase simulation efficiency, is to draw parameters from an adaptive proposal distribution $p^{(R)}(\param)$, resulting in training data that matches the observation of interest more closely in each sequential round $R$. More details regarding various possible implementations of sequential inference are given in Section~\ref{subsec:tmnre-t}.
+
+
+\section{Truncated Marginal Neural Ratio Estimation} \label{sec:tmnre}
+
+We will now focus our attention on the main \gls*{sbi} technique employed in this thesis, \gls*{tmnre}. We provide a pedagogical introduction, and show that it forms the core of a fast, accurate and precise approach to solve general parameter inference problems in high-dimensional settings. The approach builds on three key simple ingredients. First, neural ratio estimation (NRE). Second, focus on marginal inference (M).  Third, active learning through prior truncation (T).  We provide a technical description of them in the following sections, emphasizing how they compose well together.
+
+\subsection{Neural Ratio Estimation: ``classification is all you need"} \label{subsec:tmnre-nre}
+
+ Ratio estimation rephrases Bayesian posterior inference as a binary classification problem.
+Given an implicitly defined model $\data, \param \sim p(\data, \param) = p(\data\mid\param)p(\param)$, the idea behind ratio estimation is to use a binary classifier to distinguish between data \data\ and parameter \param\ pairs  drawn from two classes labeled by the binary variable $C$:
+\begin{align}
+    p(\data, \param  \mid C = 1) &= p(\data, \param ) \\
+    p(\data, \param  \mid C = 0) &= p(\data) p(\param ) \, .
+\end{align}
+Concretely, these two distributions correspond respectively to drawing data and parameters jointly from the simulator, $\data, \param \sim p(\data, \param)$, or to drawing data and parameters marginally, $\data, \param \sim p(\data) p(\param)$, by sampling an unrelated set of parameters from the prior versus data from the simulator (this can be simply obtained by scrambling the joint pairs).\footnote{Throughout this thesis we will refer to joint samples as \emph{positive} training examples, and to marginal samples as \emph{negative} training examples.} 
+
+Sampling $C=0$ and $C=1$ with equal probability, the decision function for the Bayes-optimal classifier  \cite{Devroye:1996aa} (\ie~the one that minimizes the Bayesian risk of missclassification) is:
+\begin{equation} \label{eq:sbi-classifier}
+    p(C = 1 \mid \data, \param) = \frac{p(\data, \param)}{p(\data, \param) + p(\data) p(\param)} \equiv \sigma[ \log r(\param; \data)] \, ,
+\end{equation}
+where we introduced the sigmoid function $\sigma(y) \equiv 1 / (1 + e^{-y})$. Importantly, the equivalence in Equation~\eqref{eq:sbi-classifier} shows how the Bayes-optimal classifier is related to the  posterior-to-prior, likelihood-to-evidence, or joint-to-marginal distribution ratio:
+\begin{equation} \label{eq:sbi-ratio}
+    r(\param;\data) \equiv \frac{p(\param \mid \data)}{p(\param)} = \frac{p(\data \mid \param)}{p(\data)} =  \frac{p(\data, \param)}{p(\data) p(\param)} \, .
+\end{equation}
+
+Thus, one can gain access to the posterior-to-prior ratio by training a classifier of joint versus marginal pairs, which are easily obtainable with a forward simulator, and subsequently use it for inference. In practice, as the first equality in Equation~\eqref{eq:sbi-ratio} suggests, if the prior is tractable, $r(\param;\data)$ gives direct access to the posterior density:  $p(\param \mid \data)=r(\param;\data)p(\param)$.  Alternatively, one can use $r(\param;\data)$ to weight prior samples, enabling posterior sampling even when the prior cannot be expressed in closed-form.
+
+Often, both the data and the parameters are typically high-dimensional objects, and therefore neural network-based classifiers that are able to process this complex data and be efficiently optimised are a necessary choice.
+As proposed by Ref.~\cite{Hermans:2019ioj}, in \gls*{nre} the classifier in Equation~\eqref{eq:sbi-classifier} is a \gls*{nn},  $d_{\bm{\Phi}}(\data, \param)$, that takes as input a parameters-data pair and produces an estimate of the ratio $\hat{r}(\param;\data)$.\footnote{Throughout this chapter we will use the notation $\hat{\square}$ to indicate quantities estimated via \gls*{nn}.} 
+The network parameters ${\bm{\Phi}}$ are optimized via stochastic gradient descent to minimize the \gls*{bce}:
+\begin{equation}\label{eq:sbi-bce}
+\begin{split}
+    \mathcal{L}[d_{\bm{\Phi}}(\data, \param)] = &-\int \dd \data  \dd\param \left\{ p(\data, \param) \log d_{\bm{\Phi}}(\data, \param) ] \right. \\
+    & \left. + p(\data) p(\param) \log\left[ 1 - d_{\bm{\Phi}}(\data, \param) \right] \right\}\; .
+\end{split}
+\end{equation}
+Therefore, by training a neural network $d_{\bm{\Phi}}(\data, \param)$ to estimate $\hat{r}(\param; \data)$ via this supervised classification task, we obtain an estimate of the posterior through $\hat{p}(\param \mid \data) = \hat{r}(\param; \data) p(\param)$. 
+
+%Critically, training only requires the ability to generate \emph{samples} from the simulator. This makes it straightforward to apply ratio estimation in scenarios where the explicit form of the likelihood cannot be written in closed-form. 
+
+
+\subsection{Marginalization: focus on the essentials} \label{subsec:tmnre-m} % zero-in on what matters, 
+
+Joined posteriors are commonly a key component of a scientific workflow when analysing real-world data, since access to joint posterior samples exhaustively solves a given Bayesian parameter inference. However, when the number of parameters becomes large (hundreds, thousands, millions), the computational overhead of generating joint samples can be enormous. Furthermore, the full joint posterior $p(\param \mid \data)$ is usually only an intermediate step, and not the goal by itself: in many cases, scientific insight is based on a low-dimensional marginalization of the overly informative joint posterior over nuisance parameters.
+
+Let us consider a model with a full joint distribution
+\begin{equation}
+	p(\data,\interest, \nuisance) = p(\data\mid\interest, \nuisance)p(\interest, \nuisance) \;,
+\end{equation} 
+where we have split the set of all model parameters $\param = \{\interest,\nuisance\} \in \mathbb{R}^D$ into parameters of interest $\interest \in \mathbb{R}^d$ (which we want to infer) and nuisance parameters $\nuisance \in \mathbb{R}^{D-d}$ (which we want to marginalise over). 
+Formally, the marginal posterior is obtained by integrating the joint posterior over all nuisance parameters
+\begin{equation}
+	p(\interest \mid \data) = \int \dd\nuisance\ p(\interest, \nuisance \mid \data) \;.
+\end{equation}
+
+
+\begin{figure}
+    \centering
+	\includegraphics[width=\linewidth]{TikZ/corner.pdf}
+    \caption{In simulation-based setting it is possible to directly estimate the marginal posterior of interest, instead of solving the problem for the full joint posterior at once, which can be computationally infeasible for complex models. Here we highlight some of the possible types of marginals that can be directly inferred in \gls*{sbi} for this mock high-dimensional parameter space.}
+    \label{fig:sbi-marginals}
+\end{figure}
+
+
+Given the general \gls*{nre} setup, the extension to estimating marginal posteriors is straightforward: parameters to be marginalized over must be \emph{sampled}, but \emph{not presented} to the ratio estimator  \cite{Miller:2020hua}. Hence, marginalization over nuisance variables is done implicitly, since the data will incorporate the variance from the nuisance parameters, but the inference procedure estimates only the marginal likelihood-to-evidence ratio.
+
+In more detail, if $\nuisance$ is not passed to the ratio estimator, the loss function becomes
+\begin{align} 
+   \mathcal{L}[d_{\bm{\Phi}}(\data, \interest)]&= -\int \dd\data \dd\interest \dd\nuisance\left\{ p(\data,\interest, \nuisance) \log d_{\bm{\Phi}}(\data, \interest,\nuisance) \right. \notag \\
+    &\hspace{1.8cm} \left. + p(\data) p(\interest, \nuisance) \log\left[ 1 - d_{\bm{\Phi}}(\data, \interest,\nuisance) \right] \right\} \\
+    &= -\int \dd{\data} \dd{\interest} \left\{ p(\data, \interest) \log d_{\bm{\Phi}}(\data, \interest) \right. \notag \\
+    &\hspace{1.8cm} \left. + p(\data) p(\interest) \log\left[ 1 - d_{\bm{\Phi}}(\data, \interest) \right] \right\} \;, \label{eq:sbi-bce-m}
+\end{align}
+where we have integrated over $\nuisance$ to obtain the second equality, proving our statement. 
+As a result, the binary classifier trained on $(\data, \interest)$ pairs effectively learns an estimate of the marginal likelihood-to-evidence ratios 
+\begin{equation}\label{eq:sbi-ratio_marginal}
+    \hat{r}(\data;\interest) \equiv \frac{p(\interest \mid \data)}{p(\interest)} =  \int \mathrm{d}\nuisance \, \frac{p(\boldsymbol{\theta, \eta} \mid \data)}{p(\interest)} p(\nuisance)  \, .
+\end{equation}
+We can then use the marginal ratio $\hat{r}(\data,\interest)$ to evaluate the marginal posterior for the parameters of interest directly or obtain samples otherwise, with significantly less computational cost. The possibility to directly access marginal posteriors can be easily obtained for  NLE and NPE density estimators as well \cite{Alsing:2019xrx, Jeffrey:2020itg}.
+
+As touched upon in Section~\ref{sec:lbi-sbi}, this way of approaching the problem determines the scalability of \gls*{sbi} algorithms with parameter space dimensionality.
+One can then focus on improving the model realism (\ie~complexifying the simulator) without fundamentally altering the inference process (\ie~same ratio estimator training), since there is no need to estimate a full-joint posterior. Effectively this means that we can use \gls*{sbi} algorithms to break down large problems into smaller ones, while coherently accounting for the uncertainties coming from the rest of the parameter space. An exemplification of this process is illustrated in Figure~\ref{fig:sbi-marginals}, where instead of solving the inference problem for the whole parameter space, one can focus on lower-dimensional projections of the correlations. 
+
+It is important to note that, when making the simulator more complex by adding parameters, if all of them contribute equally to the data variance, the implicit data distribution will become noise-dominated. Thus, when referring to scaling to arbitrary number of variables, the data variance is implicitly kept fixed. This limit remains a challenge for likelihood-based methods, but is tractable in the simulation-based frameworks.
+
+
+\subsection{Truncation: zoom-in for high precision} \label{subsec:tmnre-t}
+
+ The ratio estimators discussed so far are fully \emph{amortized}: that is, they attempt to learn $r(\interest; \data)$ over the whole range of the prior $p(\interest)$. In principle, it is useful to be able to analyze any possible observation with the same network. In practice, when the posterior $p(\interest \mid \data_0)$ for a particular observation $\data_0$ is much narrower than the prior, training an accurate ratio estimator, and general density estimators, requires a massive amount of training data. Hence, for a given limited simulation budget and network bandwidth, amortized inference typically comes at the expense of reduced posterior precision. In order to fully exploit available information in the data with limited computational resources, we instead focus on the problem of \emph{targeted learning} of the posterior for a specific observation of interest $\data_0$ through \emph{sequential inference}. In a nutshell, sequential inference approaches adaptively choose informative simulations by using sequentially refined proposal distributions for the model parameters, as briefly mentioned in Section~\ref{sec:sbi}. In this way, the relevant parameter space is sampled more densely and the network can learn better in that region.
+
+The classification of sequential \gls*{sbi} algorithms can be sifted based on how they acquire new, informative simulations. In particular, the sequential techniques adopted in Refs.~\cite{Papamakarios:2016ctj, Lueckmann:2017aa, Greenberg:2019aa, Papamakarios:2018aa, Hermans:2019ioj, Durkan:2020aa} draw new simulations for the next round from the \emph{approximate posteriors} learned in each round. However, this approach suffers from two limitations. First, several frequently used diagnostic tools for \gls*{sbi} depend on performing inference across multiple observations (\eg~expected coverage tests, see Section~\ref{subsec:tmnre-test}). In this setting, to perform these tests, one would have to generate new simulations and network retraining for each observation, which is often prohibitively expensive. Second, marginal posterior estimation is in general affected by the proposal distribution, since one implicitly integrates over it. As a result, this approach is unsuitable for learning multiple marginal posteriors simultaneously over a number of sequential rounds, since sampling from the marginal for a particular parameter may hinder learning the marginals for other parameters (for a possible workaround see Ref.~\cite{Alsing:2019xrx}).
+
+To overcome the limitations of this sequential scheme, Ref.~\cite{Miller:2021aa} proposed a hard-likelihood \emph{prior truncation} scheme, applicable to \gls*{nre}, that composes well with marginalisation and is locally amortised.\footnote{With \emph{locally amortised} inference we refer to an inference that can be repeated several times, without retraining, with distinct observations that live in the support of the truncated prior.}
+This prior truncation scheme iteratively discards in rounds $R$ low likelihood(-to-evidence) regions, where the current approximate likelihood-to-evidence ratio evaluated for the target observation is below a user defined threshold $\epsilon$. Concretely, this means keeping the region of parameter space defined by
+\begin{equation}\label{eq:gamma_r}
+    \Gamma^{(R)}_{\interest} = \{ \interest \in \mathbb R^d : \hat{r}^{(R)}(\interest ; \data) > \epsilon\} \;,
+\end{equation}
+and discarding its complement.\footnote{Similar truncated proposals have also been introduced in \cite{Deistler:2022aa} in the context of NPE, where the condition is instead on the current estimated posterior, \eg~$\hat{p}^{(R)}(\interest \mid\data) > \epsilon$.
+}
+Such truncated priors constrained to the parameter region $\Gamma^{(R)}_{\interest}$ can be defined as:
+\begin{equation}
+    \label{eqn:truncated_prior}
+    p_\Gamma(\interest) \equiv  \frac1V \mathbb{I}_{\Gamma}(\interest) p(\interest)\;.
+\end{equation}
+Here, $\mathbb{I}_{\Gamma}(\interest)$ is an indicator function, which is one for $\interest \in \Gamma$ and zero otherwise,
+\begin{equation}
+\mathbb{I}_\Gamma(\interest) \equiv \left\{
+\begin{matrix}
+1 \quad \text{for} \quad \interest \in \Gamma\\
+0 \quad \text{otherwise}
+\end{matrix}
+\right.
+\end{equation}
+Furthermore,  $V \equiv \int d\interest\, \mathbb{I}_\Gamma(\interest)\, p(\interest)$ is a normalizing constant that can be interpreted as the mass of the truncated prior.
+
+The prior truncation scheme thus defines a series of nested indicator functions $\mathbb{I}_{\Gamma^{(R)}}$ whose regions have the property $\Gamma^{(0)}  \supset \Gamma^{(1)}  \supset \Gamma^{(2)} \supset \dots \supset \Gamma^{(S)}$, where $\Gamma^{(0)}$ defines the support of the full initial prior, and $\Gamma^{(S)}$ is the final stable truncated prior. We illustrate this truncation procedure for a simple 1-dimensional scenario in Figure~\ref{fig:sbi-truncation}.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\linewidth]{TikZ/truncation.pdf}
+	\caption{Illustration of sequential inference for a 1-dimensional posterior. First, we learn an approximation to the posterior $p(\interest\mid\data)$ from the full initial prior $p(\interest)$. Then, we restrict the prior in the region where the parameter $\interest$ is likely to have generated $\data$. In the next inference round, the truncated prior $p_\Gamma(\interest)$ will be used to generate targeted simulations, sampling the parameter space more densely in the region of interest, so that the network can learn better in that region.}
+	\label{fig:sbi-truncation}
+\end{figure}
+
+Importantly, since this sequential scheme does not modify the shape of the prior proposal distribution, but only restricts its support, the inference is still locally amortised in the constrained proposal distribution region, thus allowing for the possibility of tests that rely on performing inference across multiple observations (in the $\Gamma$ support). Moreover, it is also possible to use the same training data generated for a round to efficiently train arbitrary marginal posteriors for any set of model parameters. 
+
+Training targeted ratio estimators is achieved by replacing the full prior with a \emph{truncated prior} $p^{(R)}_{\Gamma}(\interest)$, where the parameters are restricted to a region $\Gamma$ where they are likely to have generated $\data_0$. Since parameters from the complement of $\Gamma$ are unlikely to have generated $\data_0$, training a ratio estimator with data generated from the truncated prior as opposed to the full prior has little impact on the posterior learned by our ratio estimators. Indeed, only those regions where $p(\data_0 \mid\interest)$ is sufficiently negligible are removed, such that $p(\data_0\mid\interest) \to \mathbb{I}_\Gamma(\interest) \cdot p(\data_0\mid\interest)$ remains an accurate approximation for a given target observation $\data_0$. For generous enough $\Gamma$, the posterior remains essentially unchanged far into its tails,
+\begin{equation}
+\begin{split}
+    p_\Gamma(\interest\mid\data) 
+    &= \frac{p(\data\mid\interest)\,p_\Gamma(\interest)}{\int d\interest\, p(\data\mid\interest)\, p_\Gamma(\interest)}
+    = \frac{p(\data\mid\interest)\,p(\interest)\cdot\mathbb{I}_\Gamma(\interest)\, V^{-1}}
+    {\int d\interest\, p(\data\mid\interest)\,p(\interest)\cdot \mathbb{I}_\Gamma(\interest)\, V^{-1}} \\
+    &\simeq \frac{p(\data\mid\interest)p(\interest)}{p(\interest)}
+    = p(\interest\mid\data) \;. 
+\end{split}
+\end{equation}
+
+%In practice, since the highest probability density region of the true posterior $\Gamma$ is unknown, we compute an estimate $\hat{\Gamma}$ over a sequence of inference rounds. At the beginning of each round, we sample from $p_{\hat{\Gamma}}(\interest)$ (or the full initial prior in the first round) and train a ratio estimator. We re-estimate $\hat{\Gamma}$ by keeping only the parts of the previous truncated prior for which $\hat{r}(\interest; \data)$ exceeds a certain threshold \cite{Miller:2021aa}. This determines the truncated prior for the next round. The final ratio estimator is obtained when $\hat{\Gamma}$ stops changing substantially between rounds, even when using more training data. 
+
+This whole scheme relies on the assumption that posterior estimate $\hat p_{\Gamma}(\interest \mid \data_0)$ is a good approximation of $p(\interest \mid \data_0)$. An over-confident estimate would remove parameter ranges that are part of $\Gamma^{(R)}(\interest)$. In practice, this effect is not observed for a conservative choice of $\epsilon$. Moreover, one can test the convergence of the sequential scheme by checking whether high probability regions of the estimated posteriors intersect with the boundaries of the indicator function.
+
+
+\subsection{Information maximizing neural network} \label{subsec:tmnre-nn}
+
+From a practical perspective, a given inference involves training several classifiers (corresponding to the various marginal ratio estimators) in parallel. For complex and high-dimensional data, it is generally useful to compress it before it is input into the inference network through a so-called compression/summary/embedding network. Hence, the inference neural network usually employed to perform \gls*{tmnre} are generally split into two distinct components: an embedding network $C_\Phi(\data)$ and binary classification networks $d_\Phi(\data, \interest)$. 
+
+The embedding network learns to compresses the potentially high-dimensional data into a low-dimensional feature vector, estimating the best possible summary statistics from the full input data, $\boldsymbol{s}= C_\Phi(\data)$. In principle, the compression network can be any sufficiently expressive network, no specialized network architectures are required. In practice, for faster convergence and better results specific inductive biases of different network architectures should be exploited, \eg~for image data, convolutional neural networks are often appropriate. Throughout this thesis, we will see various example of this (\eg~see Chapter~\ref{cha:lensing}). Furthermore, the compression network output can be shared as input to all of the classification networks, or subdivided between the classifiers, in order for each compressed summary to be optimized for the specific marginal estimator. 
+
+While the purpose of the embedding network is to efficiently summarize data, the purpose of classifiers $d_\Phi(\boldsymbol{s}, \interest)$ is to learn the correlation between the data summary $\boldsymbol{s}$ and the parameters of interest $\interest$ in order to perform the actual ratio estimation. Their inputs are the learned summaries of the observational data concatenated with the parameters of interest for the targeted marginal. Usually, the classifiers are parameterized with fully connected layers and unless otherwise specified in this thesis we will be using the ResNet \cite{he2016deep} architecture as implemented in \swyft \cite{Miller2022}.
+
+The compression network and ratio inference are \emph{optimized simultaneously}, in contrast to other algorithms in the literature, minimizing the \gls*{bce} loss function (Equation~\eqref{eq:sbi-bce-m}). The structure of a general network architecture can be expressed as:
+\begin{equation}\label{eq:nn-c}
+    d_\Phi(\boldsymbol{s}= C_\Phi(\data), \interest) \simeq  d_\Phi(\data, \interest)  = \sigma[ \log \hat{r}(\interest; \data)] \;,
+\end{equation}
+and is illustrated in Figure~\ref{fig:sbi-nn}.
+
+\begin{figure}
+    \centering
+	\includegraphics[width=\linewidth]{TikZ/sbi_nn.pdf}
+    \caption{\todo{Finish} Illustration of the network architecture, including the embedding network $C_\Phi(\data)$ and the discrimination network $d_\Phi(\boldsymbol{s}, \interest)$. Input data $\data$ and parameters $\interest$ are internally mapped to the marginal parameter combinations of interest, for which individual ratio estimators with a shared compression network are trained. The outputs are estimated ratios for the marginal posteriors of interest... \todo{Finish}}
+    \label{fig:sbi-nn}
+\end{figure}
+
+\medskip
+
+It is interesting to understand why the approximately equal sign in Equation~\eqref{eq:nn-c} holds and which features $\boldsymbol{s}$ are learned by the embedding network during training, \eg~in comparison to the hand-crafted ones employed in \gls*{abc} (Section~\ref{sec:sbi}). Following Ref.~\cite{Cole:2021gwr}, the \gls*{bce} loss in Equation~\eqref{eq:sbi-bce-m} can be written in terms of the Jensen-Shannon divergence (JSD) as
+\begin{equation}
+   \mathcal{L}[d_{\bm{\Phi}}(\data, \interest)] = 2 \log2 - 2\mathbb{E}_{p(\data)}\left[D_{JS}(p(\interest\mid\data)\mid\mid p(\interest)\right] \;,
+\end{equation}
+which follows\footnote{
+   In fact,
+   \begin{multline}
+   -2\mathbb{E}_{p(\data)}\left[D_{JS}\left(p\left(\interest\mid\data\right) \parallel  p(\interest)\right)\right] \\
+   =-\mathbb{E}_{p(\data)}\left[
+      D_{KL}\left(p\left(\interest\mid\data\right) \parallel \frac12\left(p\left(\interest\mid\data\right) + p(\interest)\right)\right)
+      +D_{KL}\left(p\left(\interest\right) \parallel \frac12\left(p\left(\interest\mid\data\right) + p(\interest)\right)\right)\right]\\
+   = -\int d\data\, d\interest\,
+   \underbrace{p(\data)p(\interest\mid\data)}_{\to p(\data, \interest)} \ln \frac{p\left(\interest\mid\data\right) }{ \frac12\left(p\left(\interest\mid\data\right) + p(\interest)\right)}
+   +p(\data)p(\interest) \ln \frac{p\left(\interest\right) }{ \frac12\left(p\left(\interest\mid\data\right) + p(\interest)\right)}\\
+   = -\int \dd{\data} \dd{\interest} \left\{ p(\data, \interest) \log d_{\bm{\Phi}}(\data, \interest) \notag + p(\data) p(\interest) \log\left[ 1 - d_{\bm{\Phi}}(\data, \interest) \right] \right\} \\
+   = \mathcal{L}[d_{\bm{\Phi}}(\data, \interest)] - 2\ln 2 \;,
+\end{multline}
+where the third equation follows from Equation~\eqref{eq:sbi-classifier}.
+}
+directly from the definition of the JSD
+\begin{equation}
+    D_{JS}(p\mid\mid q) = \frac{1}{2}D_{KL}(p \parallel m)+\frac{1}{2}D_{KL}(q \parallel m)\;,
+\end{equation}
+where $m=(p+q)/2$ and $D_{KL}$ denotes the Kullback-Leibler divergence, previously defined in Equation~\eqref{eq:kld}.
+
+We can now apply the same logic to our network with a compression step, an information bottleneck, in Equation~\eqref{eq:nn-c}. The posterior is then conditioned on the summary statistics $\boldsymbol{s}$, and the loss function can be written as
+\begin{equation} \label{eq:loss-jsd}
+   \mathcal{L}[d_{\bm{\Phi}}(\boldsymbol{s} = C_\phi(\data), \interest)] = 2 \log2 - 2\mathbb{E}_{p(\data)}\left[D_{JS}(p(\interest\mid\boldsymbol{s} = C_\phi(\data))\mid\mid p(\interest)\right] \;.
+\end{equation}
+%thus, data summaries $\boldsymbol{s}$ are learned such that they maximize the JSD between posteriors and priors.  
+
+Looking at Equation~\eqref{eq:loss-jsd}, assuming a fully converged classifier and the loss as a function of the summary $\boldsymbol{s}$, it becomes now evident that a data summary $\boldsymbol{s}$ that minimizes the \gls*{bce} loss has to \emph{maximize} the expected JSD between the data-summary-based posterior and the prior for the parameters of interest $\interest$. Therefore, data summaries $\boldsymbol{s}$ that sufficiently describe data $\data$ for a parameter $\interest$ lead to posteriors $p(\interest\mid\data)$. On the other hand, inefficient data summaries will lead to wider posteriors which are more similar to the prior, reducing the JSD, and increasing the value of the loss function.  Hence, it makes sense to expect that the data summaries that are learned are the most informative to discriminate between samples from the posterior and the prior, or, equivalently, to discriminate whether the likelihood-to-evidence ratio is larger or smaller than one,
+\begin{equation}
+    \frac{p(\boldsymbol{s} \mid \interest)}{p(\boldsymbol{s})}  = 
+    \frac{p(\interest\mid \boldsymbol{s})}{p(\interest)} 
+    \lessgtr 1\;.
+\end{equation}
+
+
+%What does a large JS-divergence signify? To see this, we consider the average Bayesian probability of error of wrongly classifying a parameter-data pair as drawn from the prior or the posterior, which is given by
+%%
+%\begin{equation}
+%    \hat P_e = \mathbb{E}_{\data \sim p(\data)} \left[\frac12 \min(p(\interest\mid\data), p(\interest))\right]
+%\end{equation}
+%%
+%In Ref.~\cite{XYZ} it was shown that the minimum of the NRE loss provides an upper bound on the error rate,
+%%
+%\begin{equation}
+%    \hat P_e
+%    \leq
+%    2\log 2 -  
+%    2 \mathbb{E}_{\data\sim p(\data)}\left[D_{JS} ( p(\interest\mid\data) \;\mid\mid\; p(\interest))\right]
+%    \leq \ell_{NRE}[F_\phi]\;.
+%\end{equation}
+%
+%When using NRE as described above, the summary is optimized such that it minimizes (an upper bound on) the error rate when classifying points as drawn from the prior vs. drawn from the posterior, or (equivalently) whether the likelihood-to-evidence ratio is larger or smaller than one,
+%%
+%\begin{equation}
+%    \frac{p(\boldsymbol{s} \mid \interest)}{p(\boldsymbol{s})}  = 
+%    \frac{p(\interest\mid \boldsymbol{s})}{p(\interest)} 
+%    \lessgtr 1\;.
+%\end{equation}
+
+%\subsection{Hierarchical inference} \label{subsec:tmnre-hierarchical}
+%\todo{Add brief paragraph about hierarchical inference in SBI to setup the problem for populations of subhalos in lensing and point sources in maps?} 
+%
+%When analyzing real-world data it is common to work with event ensembles, which comprise sets of observations that collectively constrain the parameters of an underlying model of interest. Such models often have a hierarchical structure, where “local” parameters impact individual events and “global” parameters influence the entire dataset. 
+%Datasets composed of multiple samples are ubiquitous in scientific and more broadly real-world data analysis tasks. These datasets are typically governed by underlying models that exhibit a rich hierarchical structure, with local parameters shaping individual events while global parameters exert influence across the entire dataset. This layered structure, if appropriately utilized, can greatly augment the efficiency and effectiveness of the inference process.
+%We substantiate theoretically as well as empirically the fact that hierarchy-aware inference in many implicit models with a hierarchical structure requires a dataset-wide approach, contrasted with the more common paradigm of combining implicit likelihood or posterior estimators associated with individual observations.
+%
+%The joint probability distribution of a set of events with cardinality N, with global parameters of interest θ, global nuisance parameters θν as well as local parameters zi can be written as:
+%N
+%p({x} | {z},θ,θν) = Yp(xi | zi,θ,θν), (1)
+%i=1
+%
+%come from different stellar populations have different intrinsic prop
+%Hierarchical Bayesian modelling, however, comes at the cost of having to infer individual parameters for each observed SN Ia, and so the computational burden scales with the data set size
+% population variability 
+%perform simulation-based inference over event ensembles and can deal with datasets of varying cardinality\cite{Heinrich:2023bmt}
+
+\subsection{Testing SBI: getting it right} \label{subsec:tmnre-test}
+
+\gls*{tmnre} is a \emph{locally amortized} technique, meaning that the ratio estimator are trained to learn a function, that can then be evaluated to perform inference very quickly on \emph{any} number of data, thanks to the great evaluation speed of neural networks. This opens up the possibility to perform consistency checks of the statistical properties of the trained networks, within the constrained region over which they have been trained, in each stage of truncation. These type of tests are generally infeasible for likelihood-based methods, where the algorithms perform inference on a single fixed observation and must rerun from scratch for another observation. In this likelihood-based settings, it is hence computationally very costly to test coverage on simulated data, and usually the statistical properties of the inference results are instead inferred based on convergence criteria of the sampling chains \cite[\eg][]{vivekan2019convergence}. This difference is illustrated in Figure~\ref{fig:sbi-test}.
+
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\linewidth]{TikZ/sbi_test.pdf}
+	\caption{Testability: Contrary to \gls*{lbi} algorithms, many \gls*{sbi} methods, including \gls*{tmnre}, do not estimate just a single posterior, but all of them simultaneously. This property is called ``amortization" in the machine learning field. Amortization enables the user to efficiently test the reliability of the inference results, for example with expected Bayesian coverage tests ({rightmost panel}). The left part of the figure is inspired and adapted from Figure 4 in Ref.~\cite{Cole:2021gwr}.
+}
+\label{fig:sbi-test}
+\end{figure}
+
+
+Using local amortization, one can cheaply validate the Bayesian coverage properties of the approximate posteriors \cite{Hermans:2021rqv, Cole:2021gwr, Karchev:2022xyn}, and construct confidence regions with exact frequentist coverage \cite{Karchev:2022xyn, dalmasso2020confidence, dalmasso2021likelihood}. Here we focus on the former types of tests, and use the \emph{expected coverage test} that probes the empirical (\ie~determined from analyses of simulated data $\data$) Bayesian coverage properties of the estimated posteriors $\hat{p}(\interest \mid \data)$.
+
+An \emph{expected coverage test}  measures whether Bayesian credible regions of different widths have achieved their nominal coverage \cite{Hermans:2021rqv, Cole:2021gwr}. In simple words, it checks whether the true parameters $\interest$ fall within the $x\%$ credible region ($1-\alpha$) of the estimated posterior for $x\%$ of the randomly drawn observations $\data \sim p(\data\mid\interest)$. Agreement between the nominal and empirically-measured expected coverage is a necessary (but not sufficient) condition for the density/ratio estimator to be a correct estimate of the posterior. In case of a conservative estimator, the nominal credibility $1-\alpha$ is lower than the empirical one $1-\hat\alpha$, and vice versa for an overconfident estimator. In combination with visually checking the posteriors, this test supports the accuracy of the posterior estimator and is also particularly useful when one does not have access to the ground truth against which to compare the results.
+
+Since we are mostly interested in small values of $\alpha$, corresponding to posterior regions with high mass, it is convenient to reparameterize $\alpha$ in terms of a new variable $z$, defined as $1-\frac12 \alpha$ quantile of the standard normal distribution \cite{Cole:2021gwr}. As a results,  $z = 1, 2, 3$ have $1-\alpha = 0.6827, 0.9545, 0.9997$, and correspond to the common $1\sigma$, $2\sigma$, $3\sigma$ regions. We show a mock example of such test in the right panel of in Figure~\ref{fig:sbi-test} to illustrate its general behaviour.
+
+In Chapter~\ref{cha:lensing}, we will use empirical coverage plots in order to double-check and confirm the convergence of our posterior estimators for strong lensing image analysis. Closely related versions of this test and plots have appeared in the literature, \eg~in Refs.~\cite{Dax:2021tsq,Karchev:2022xyn, Bhardwaj:2023xph}. Developing more tests in order to trust results generated by \gls*{sbi} algorithms is very active and ongoing work. For example, it is worth mentioning an alternative method of defining Bayesian credible regions using distances to random points, which can, in certain circumstances, detect a systematic bias \cite{lemos2023sampling}.
+
+
+
+
+\bigskip
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\linewidth]{TikZ/tmnre.pdf}
+	\caption{\textbf{Truncated marginal neural ratio estimation.} Parameters, both of interest $\interest$ and nuisance $\nuisance$, are sampled from the initial prior $p(\param)$, and mapped into data $\data$ through a programmed simulator that effectively acts as in implicit likelihood. Inference is performed by training binary classifiers $d_\Phi(\data, \interest)$ with marginal \gls*{nre} to learn the estimates of the ratios of interest $\hat{r}(\interest;\data)$ (Sections~\ref{subsec:tmnre-nre} and \ref{subsec:tmnre-m}). The ratios are used to weight prior samples, enabling posterior sampling for any observation $\data$. Focusing on a target observation $\data_0$, we can perform sequential inference (Section~\ref{subsec:tmnre-t}) via prior truncation, by constraining the initial parameter space for the inferred parameters to regions $\Gamma^{(R)}(\interest)$ that are most relevant for a specific target observation $\data_0$. The procedure is repeated until convergence.
+}
+	\label{fig:sbi-tmnre}
+\end{figure}
+
+In this section we have introduced the technical details of the \gls*{tmnre} algorithm, and its key building blocks: \gls*{nre} (Section~\ref{subsec:tmnre-nre}), marginalization  (Section~\ref{subsec:tmnre-m}), and prior truncation  (Section~\ref{subsec:tmnre-t}). We have also seen the general network architecture that is usually employed within this algorithm (Section~\ref{subsec:tmnre-nn}) and how to test its results (Section~\ref{subsec:tmnre-test}). A complete sketch of the workflow of a \gls*{tmnre} algorithm is illustrated in Figure~\ref{fig:sbi-tmnre}.
+
+
+\section{SBI applications in this thesis} \label{sec:applications}
+
+In this first chapter, we have learned about the benefits of simulation-based analysis for data inference, and particularly about the \gls*{tmnre} algorithm. In the next chapters, we will see its applications to various astrophysical problems: the analysis of strong gravitational lenses as a dark matter probe (Chapter~\ref{cha:lensing}), how to scale it to higher dimensional problems with more correlated parameter spaces (Chapter~\ref{cha:anre}), the reconstruction of cosmological initial conditions Chapter~\ref{cha:cosmo}), and the analysis of a population of point-sources in sky-maps (Chapter~\ref{cha:detection}). The common thread between all these applications is being formally representable by \emph{large and complex forward models}, with many moving parts, on a subpart of which we would like to perform precise scientific inference while correctly propagating uncertainties from the others. This is possible in a \gls*{sbi} framework.
+
+In particular, we will see many of the several types of marginal posteriors that can be directly inferred in simulation-based settings, and which answer specific inference questions relevant for the application at hand. Some of the marginal quantities we will encounter in the different chapters of this thesis are:
+\begin{itemize}[leftmargin=1cm]
+	\item posterior of a single parameter (Chapters~\ref{cha:lensing}, \ref{cha:anre}, and \ref{cha:detection});
+	\item 2-dimensional posteriors of parameter pairs (Chapters~\ref{cha:lensing}, \ref{cha:anre}, and \ref{cha:detection});
+	\item n-dimensional posteriors of parameters (Chapter~\ref{cha:anre});
+%	\item posterior for discrete (categorical) variables that label model choices
+	\item posterior probability of a pixel value for field reconstruction (Chapter~\ref{cha:cosmo});
+    \item posterior probability of an object being present in a specific image region (Chapter~\ref{cha:detection});
+	\item posterior for the number of objects in an image  (Chapter~\ref{cha:lensing} and \ref{cha:detection}).
+\end{itemize}
+
+
+Moreover, prior truncation will be achieved by means of different strategies of increasing complexity throughout all of these applications, depending on the their specificities. The main strategies we will see are:
+\begin{itemize}[leftmargin=1cm]
+	\item 1-dimensional box truncation (Chapters~\ref{cha:lensing}, \ref{cha:anre}, and \ref{cha:detection});
+	\item n-dimensional hard-likelihood truncation with nested sampling  (Chapter~\ref{cha:anre});
+	\item truncation with tempered likelihood  (Chapter~\ref{cha:cosmo});
+	\item object detection as prior truncation  (Chapter~\ref{cha:detection}).
+\end{itemize}
+
+A detailed contextualization and explanation of the technicalities of each strategy will be given in the respective chapters. 
+
+
+
+
+
+
+

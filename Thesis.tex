@@ -1,0 +1,205 @@
+% !TEX encoding = UTF-8 Unicode
+% !TEX TS-program = pdflatexmk
+% Embed tikz come pdf
+%
+
+\documentclass[10pt]{thesis_mw}
+
+\usepackage[dvipsnames,svgnames,table]{xcolor} % use color
+\usepackage[obeyspaces,hyphens,spaces]{url}
+\usepackage{thesisfrontmatter}
+\usepackage{pdfpages}
+\graphicspath{{Figures/}}
+
+%%%%%%%%%%%%%%%%% Define Lots of Random Colors %%%%%%%%%%%%%%%%%%%%
+\input{colors}
+
+
+%%%%%%%%%%%%%%%%%%%% Define Packages %%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage{ifthen}
+\sloppy
+\usepackage{fancyhdr}
+\usepackage[colorlinks=true
+,urlcolor=dullblue
+,anchorcolor=blue3
+,citecolor=dullblue%MaroonC antiquefuchsia dullpurple dullblue
+,filecolor=blue3
+,linkcolor=darkred
+,menucolor=blue3
+%,pagecolor=blue3
+,linktocpage=true
+,pdfproducer=medialab
+]{hyperref}
+\usepackage{booktabs}
+\usepackage[english, american, dutch]{babel}
+\usepackage{cleveref}
+\usepackage{graphicx}
+\usepackage{amsfonts}
+\usepackage[shortlabels]{enumitem}
+\usepackage{upgreek}
+\usepackage{framed}
+\usepackage{tensor}
+\usepackage{pifont}
+\usepackage{latexsym, mathrsfs}
+\usepackage{array}
+\usepackage{xspace}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{cases}
+\usepackage{empheq}
+\newcommand\bmmax{2}
+\usepackage{bbm}
+\usepackage{appendix}
+\usepackage{braket}
+\usepackage{yfonts}
+\usepackage[range-units=brackets, range-phrase=-, per-mode=reciprocal, mode=math]{siunitx}
+\usepackage{threeparttable}
+\usepackage{subcaption}
+\usepackage{ragged2e}
+\usepackage{hhline}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{adjustbox}
+\usetikzlibrary{positioning}
+\usetikzlibrary{shapes.geometric}
+\usetikzlibrary{shapes,snakes}
+
+\usetikzlibrary{calc,shadings,patterns,tikzmark,fadings}
+\usepackage{siunitx}
+
+%%%%%%%%%%%%%%%%%%%% Define symbols %%%%%%%%%%%%%%%%%%%%%%%
+
+\input{symbols}
+
+
+%% Appendix formatting
+\AtBeginEnvironment{subappendices}{%
+%\chapter*{Appendix}
+%\addcontentsline{toc}{chapter}{Appendices}
+\clearpage
+\section*{\LARGE Appendix}
+\counterwithin{figure}{section}
+\counterwithin{table}{section}
+}
+\AtEndEnvironment{subappendices}{%
+\counterwithout{figure}{section}
+\counterwithin{figure}{chapter}
+\counterwithout{table}{section}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ 
+\usepackage[explicit]{titlesec}
+\usepackage{lmodern}
+\newlength\chapnumb
+\newlength\chapnumbless
+\setlength\chapnumb{3cm}
+\setlength\chapnumbless{0cm}  
+% 
+\titleformat{\chapter}[block]
+{\normalfont\sffamily\scshape}{}{0pt}
+{\parbox[b]{\chapnumb}{
+\fontsize{50}{0}\selectfont\thechapter}
+\parbox[b]{\dimexpr\textwidth-\chapnumb\relax}{
+\raggedleft
+%             \hfill{\fontsize{20}{100}\selectfont#1}\\
+				  \hfill{\huge#1 \\[5pt]}
+\rule{\dimexpr\textwidth-\chapnumb\relax}{0.4pt}
+}}      
+%                  
+%              
+\titleformat{name=\chapter,numberless}[block]
+{\normalfont\sffamily\scshape}{}{0pt}
+{\parbox[b]{\chapnumbless}{
+\mbox{}}
+\parbox[b]{\dimexpr\textwidth-\chapnumbless\relax}{
+\raggedleft
+\hfill{\Huge#1}\\
+\rule{\dimexpr\textwidth-\chapnumbless\relax}{0.4pt}}}
+              
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% ======== Title ========
+\setlength{\belowcaptionskip}{-10pt plus 3pt minus 2pt}
+\interfootnotelinepenalty=10000
+\usepackage{fix-cm}
+\newcommand\HUGE{\@setfontsize\Huge{38}{47}} 
+
+\title{{\Huge \sffamily Simulation-based inference for astrophysical data \\[5pt]}}
+
+% ======== Colofon ========
+\thesiscolofon{\input{Colofon}}
+
+% ======== Official title page ========
+\author{Noemi Anau Montel}
+\placeofbirth{Torino}
+\theday{woensdag}
+\date{30 oktober 2024}
+\thetime{10:00}
+\rectormagnificus{prof. dr. ir. P.P.C.C. Verbeek}
+\promotor{\committeeentry{dr. C. Weniger}{Universiteit van Amsterdam}}
+\copromotor{\committeeentry{dr. S. Ando}{Universiteit van Amsterdam}}
+\othercomitteemembers{ 
+\committeeentry{prof. dr. G. Bertone}{Universiteit van Amsterdam},
+\committeeentry{prof. dr. F. Donato}{University of Torino},
+\committeeentry{prof. dr. N. Fornengo}{University of Torino},
+\committeeentry{dr. S. Nissanke}{Universiteit van Amsterdam},
+\committeeentry{dr. S. Vegetti}{Max Planck Institute for Astrophysics},
+\committeeentry{dr. J. Vink}{Universiteit van Amsterdam}
+}
+\department{\small Faculteit der Natuurwetenschappen, Wiskunde en Informatica}
+
+\usepackage{pifont}
+\usepackage[nottoc]{tocbibind}
+
+\newcommand{\committeeentry}[2]{\begin{tabular*}{0.78\textwidth}{p{0.42\textwidth}l}#1 & #2\end{tabular*}}
+\newcommand{\committeeentrycopromotors}[4]{\begin{tabular*}{0.78\textwidth}{p{0.42\textwidth}l}#1 & #2\end{tabular*}
+\vskip 1em
+\hspace{1.90cm}
+\begin{tabular*}{0.78\textwidth}{p{0.42\textwidth}l}#3 & #4\end{tabular*}}
+
+\newcommand{\todo}[1]{\textcolor{teal}{[\textbf{TO DO:} #1]}}
+
+% ======== Cover ========
+\begin{document}
+\selectlanguage{english}
+{
+%\includepdf[fitpaper]{Cover.pdf}
+\let\cleardoublepage\clearpage
+\frontmatter
+	\maketitle
+	}
+	
+% ======== Publication list ========
+\basedon{Publications}{\input{Basedon}}
+
+\setcounter{tocdepth}{2}
+\tableofcontents
+
+% ======== Body ========
+\mainmatter
+\include{chapters/Introduction}
+\include{chapters/SBI}
+\include{chapters/Cutoff}
+\include{chapters/ANRE}
+\include{chapters/Cosmo}
+\include{chapters/Detection}
+\include{chapters/Conclusions}
+
+% ======== Backmatter ========
+\backmatter
+\selectlanguage{english}
+\summary{Summary / Samenvatting}{\input{Samenvatting}}
+\acknowledgements{Acknowledgements}{\input{Acknowledgements}}
+
+% ======== Bibliography ========
+\newpage
+\phantomsection
+\bibliographystyle{utphys}
+\bibliography{thesis}
+\end{document}
+
+
+

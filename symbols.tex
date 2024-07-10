@@ -1,0 +1,76 @@
+\usepackage{amsmath, amssymb, amsbsy, amstext, amsthm, simplewick}
+\usepackage{physics}
+\usepackage{bm}
+\usepackage{siunitx}
+\usepackage[acronym]{glossaries}
+
+%% Abbreviations
+\newcommand{\eg}{{e.g.}}
+\newcommand{\ie}{{i.e.}}
+
+%% Statistics
+\newacronym{lbi}{LBI}{likelihood-based inference}
+\newacronym{sbi}{SBI}{simulation-based inference}
+\newacronym{abc}{ABC}{approximate Bayesian computation}
+\newacronym{npe}{NPE}{neural posterior estimation}
+\newacronym{nle}{NLE}{neural likelihood estimation}
+\newacronym{nre}{NRE}{neural ratio estimation}
+\newacronym{mnre}{MNRE}{marginal neural ratio estimation}
+\newacronym{tmnre}{TMNRE}{truncated marginal neural ratio estimation}
+\newacronym{mcmc}{MCMC}{Markov-chain Monte Carlo}
+\newacronym{hmc}{HMC}{Hamiltonian Monte Carlo}
+\newacronym{snr}{SNR}{signal-to-noise}
+\newacronym{ps}{PS}{power spectrum}
+\newacronym{mlr}{MLR}{maximum likelihood ratio}
+\newacronym{nn}{NN}{neural network}
+\newacronym{cnn}{CNN}{convolutional neural network}
+\newacronym{gan}{GAN}{generative adversarial network}
+\newacronym{vit}{ViT}{Vision Transformer}
+\newacronym{mlp}{MLP}{multilayer perceptron}
+\newacronym{bce}{BCE}{binary cross-entropy}
+
+\newcommand{\swyft}{\textit{swyft} }
+
+%% Physics
+\newacronym{los}{LOS}{line-of-sight}
+\newacronym{nfw}{NFW}{Navarro-Frenk-White}
+\newacronym{psf}{PSF}{point-spread function}
+\newacronym{shmf}{SHMF}{subhalo mass function}
+\newacronym{sie}{SIE}{singular isothermal ellipsoid}
+\newacronym{sple}{SPLE}{singular power law ellipsoid}
+\newacronym{gr}{GR}{general relativity}
+\newacronym{dm}{DM}{dark matter}
+\newacronym{cdm}{CDM}{cold dark matter}
+\newacronym{wdm}{WDM}{warm dark matter}
+\newacronym{hmf}{HMF}{halo mass function}
+\newacronym{hst}{HST}{Hubble Space Telescope}
+
+
+%% Units
+\DeclareSIUnit \Mpc {Mpc}
+\DeclareSIUnit \arcsec {arcsec}
+\DeclareSIUnit \solmass {M_{\odot}}
+\newcommand{\keV}{\kiloElectronvolt}
+
+%% Distributions
+\newcommand{\Uniform}{\mathcal{U}}
+\newcommand{\Normal}{\mathcal{N}}
+
+%% Parameters
+\newcommand{\data}{\ensuremath{\bm{x}}}
+\newcommand{\param}{\ensuremath{\bm{\Theta}}}
+\newcommand{\interest}{\ensuremath{\bm{\theta}}}
+\newcommand{\nuisance}{\ensuremath{\bm{\eta}}}
+
+\newcommand{\plens}{\ensuremath{\nuisance_\mathrm{lens}}}
+\newcommand{\psrc}{\ensuremath{\nuisance_\mathrm{src}}}
+\newcommand{\msub}{\ensuremath{\bm{m}_{200, \mathrm{sub}}}}
+\newcommand{\mlos}{\ensuremath{\bm{m}_{200, \mathrm{los}}}}
+\newcommand{\psubb}{\ensuremath{{{\nuisance}}_\mathrm{sub}}}
+\newcommand{\psub}{\ensuremath{\vec{{\nuisance}}_\mathrm{sub}}}
+\newcommand{\plos}{\ensuremath{\vec{{\nuisance}}_\mathrm{los}}}
+\newcommand{\pp}{\ensuremath{\boldsymbol{\vec{{\nuisance}}_\mathrm{p}}}}
+\newcommand{\zlos}{\ensuremath{\bm{z}_\mathrm{los}}}
+\newcommand{\mhm}{\ensuremath{\mathrm{M_{hm}}}}
+
+\newcommand{\hypgeom}{\ensuremath{{}_2\mathrm{F}_1}}

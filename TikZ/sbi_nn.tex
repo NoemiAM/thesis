@@ -1,0 +1,70 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\usepackage{xcolor}
+\pgfplotsset{compat=1.17}
+\input{../symbols}
+\input{../colors}
+
+
+% Layer
+\newcommand{\drawlayer}[5]{ % fourth parameter is a unique identifier for the layer
+    \pgfmathsetmacro{\layerheight}{#1}
+    \pgfmathsetmacro{\layerx}{#2}
+    \pgfmathsetmacro{\layery}{#3}
+    \pgfmathsetmacro{\layerwidth}{1}
+    \pgfmathsetmacro{\node}{0.1}
+    \pgfmathsetmacro{\n}{\layerheight-1}
+    \draw[thick, rounded corners] (\layerx, \layery) rectangle (\layerx+\layerwidth, \layery+\layerheight);
+    \foreach \y in {0, ..., \n} {
+        \fill[silver, rounded corners] (\layerx+0.1, \layery+\y+0.1) rectangle (\layerx+\layerwidth-0.1, \layery+\y+\node-0.1);
+        \coordinate (#4-\y) at (\layerx, \layery + \y+0.5); % save node position
+		\coordinate (#5-\y) at (\layerx+1, \layery + \y+0.5); % save node position
+    }
+}
+
+% Connections
+\newcommand{\drawconnections}[4]{ % input are the two layer IDs
+    \foreach \y in {0, ..., #1} {
+        \foreach \z in {0, ..., #2} {
+            \draw[thin, gray] (#3-\y) -- (#4-\z);
+        }
+    }
+}
+
+
+\begin{document}
+
+\begin{tikzpicture}
+  
+
+	% Define nodes
+	\node[align=center] (theta) at (0,2) {$\interest$};
+	\node[align=center] (x) at (0,0) {$\data$};
+	\node[align=center, rectangle, draw] (compression) at (2,0) {$s=C_{\Phi}(\data)$};
+%	
+%	\drawlayer{0.4}{0}{2}{L1}{L11}
+%    \drawlayer{0.8}{2}{0}{L2}{L22}
+%    \drawconnections{3}{7}{L11}{L2}
+
+
+	\node[align=center] (discrimination) at (10,2) {Discrimination Network};
+
+	% Connect nodes
+	\draw[->] (x) -- (compression);
+	\draw[->] (theta) -- (discrimination);
+	\path[->] (compression) -- node[above, midway] {} (discrimination);
+
+	\foreach \y in {0} {
+		 \node[rectangle, draw, minimum width=0.5cm, minimum height=0.5cm] (th\y) at (4, 3-0.5*\y)  {\interest};
+	}
+	\foreach \y in {0,1,2,3,4} {
+		 \node[rectangle, draw, minimum width=0.5cm, minimum height=0.5cm] (s\y) at (4, 2-0.5*\y)  {s};
+	}
+	
+	\node[align=center] (theta) at (10,1) {$\hat{r}(\interest;\data)$};
+    
+
+
+\end{tikzpicture}
+
+\end{document}

@@ -1,0 +1,37 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\input{../../symbols}
+\input{../../colors}
+
+
+\begin{document}
+
+\begin{tikzpicture}
+	\begin{loglogaxis}[
+		width=10cm, height=6cm,
+        xmin=1, xmax=1e8,
+        ymin=1, ymax=1e8,
+        axis line style={black},
+        xlabel={{Number of parameters}},
+        ylabel={{Number of simulations}},
+        tick align=inside,
+        minor tick style={draw=none}
+	]
+	\fill [blue!30, opacity=0.3] 
+		(axis cs:1, 9000) --
+		(axis cs:1e8, 9000) --
+		(axis cs:1e8, 1e8) --
+		(axis cs:1, 1e8) --
+		cycle;
+	\node [blue, align=center] at (axis cs:5e5, 5e4) {Simulation-based inference};
+	\fill [red!30,, opacity=0.3]
+		(axis cs:1, 1e8) --
+		(axis cs:81e2, 1e8) --
+		(axis cs:1, 2e2) --
+		cycle;
+	\node [red, align=center, rotate=38] at (axis cs:4e1, 4e5) {Likelihood-based\\inference};
+	\end{loglogaxis}
+\end{tikzpicture}
+
+\end{document}

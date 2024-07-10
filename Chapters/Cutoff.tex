@@ -1,0 +1,680 @@
+\chapter{Simulation-based inference for strong gravitational lensing} \label{cha:lensing}
+
+
+Precision analysis of galaxy-galaxy strong gravitational lensing images provides a unique way of characterizing small-scale dark matter halos, and could allow us to uncover the fundamental properties of dark matter's constituents. Recently, gravitational imaging techniques made it possible to detect a few heavy subhalos. However, gravitational lenses contain numerous subhalos and line-of-sight halos, whose subtle imprint is extremely difficult to detect individually. Existing methods for marginalizing over this large population of sub-threshold perturbers to infer population-level parameters are typically computationally expensive, or require compressing observations into hand-crafted summary statistics, such as a power spectrum of residuals.
+
+In this chapter, we present the first analysis pipeline to combine parametric lensing models and a recently-developed neural simulation-based inference technique called truncated marginal neural ratio estimation (\gls*{tmnre}) to constrain the warm dark matter halo mass function cutoff scale directly from multiple lensing images. Through a proof-of-concept application to simulated data, we show that our approach enables empirically testable inference of the dark matter cutoff mass through marginalization over a large population of realistic perturbers that would be undetectable on their own, and over lens and source parameters uncertainties. To obtain our results, we combine the signal contained in a set of images with Hubble Space Telescope resolution. Our results suggest that \gls*{tmnre} can be a powerful approach to put tight constraints on the mass of warm dark matter in the multi-keV regime, which will be relevant both for existing lensing data and in the large sample of lenses that will be delivered by near-future telescopes.
+
+
+
+\section{Introduction} \label{sec:sl-intro}
+
+
+\paragraph*{Dark matter puzzle.} Over the past several decades, numerous astrophysical probes including rotational curves of spiral galaxies \cite{Rubin:1980zd}, galaxy-cluster dynamics \cite{Zwicky:1933gu}, cosmic microwave background \cite{Planck:2015fie}, gravitational lensing observations \cite{Taylor:1998uk}, have established \gls*{dm} as one of the major components of the universe, comprising about $85\%$ of the its mass. However, up to the present time, the fundamental nature of \gls*{dm} is still one of the key unresolved puzzle in physics. For many years, the \gls*{cdm} paradigm has been able to accurately reproduce vastly disparate large-scale observations across all epochs. In this model, \gls*{dm} is massive, neutral, non-relativistic, and collisionless \cite{Peebles:1982ff}. %The main prediction of the \gls*{cdm} paradigm is that structure formation is due to a hierarchical clustering process, guided by gravitational instability of \gls*{dm} density perturbations, originated from quantum fluctuations during inflation. 
+
+Despite providing a stunning description of the observed distribution of matter on large scales ($>\order{\si{\Mpc}}$), the agreement between \gls*{cdm} predictions and observations at galactic and sub-galactic scales has been less clear. At present, there is continued debate over whether the known abundance of dwarf galaxies and the density profiles of low-mass galaxies are in tension with the predictions of $\Lambda$CDM (respectively dubbed the missing satellites problem \cite{Moore:1999nt,Klypin:1999uc} and the cusp-core problem \cite{deBlok:1997zlw}, reviewed in Ref.~\cite{Bullock:2017xww}).
+Solutions to these tensions include the impact of baryonic processes, such as supernovae feedback and reionization processes \cite{Bullock:2010uy}, or alternative \gls*{dm} physics. %Baryonic processes from supernovae feedback and reionization processes suppress star formation in low-mass galaxies \cite{Bullock:2010uy}, resulting in most \gls*{dm} subhalos not containing sufficiently bright galaxies and thus being more difficult to detect. Furthermore, baryonic feedback can "flatten out" the core of a dark matter profile, since feedback-driven gas outflows produce a time-varying gravitational potential that transfers energy to the orbits of the collisionless dark matter particles
+
+The latter approach requires an alteration of \gls*{dm} particle physics, such that large-scale predictions remain unaffected, but the number of small-scale substructures is suppressed. \Gls*{dm} models which are warm instead of cold \cite{Colin:2000dn,Hogan:2000bv, Lovell:2013ola}, collisional instead of collisionless \cite{Spergel:1999mh}, or quantum on macroscopic scales rather than classical \cite{Hu:2000ke} predict a diverse array of possible configurations of low-mass halos and could potentially resolve these tensions \cite{Buckley:2017ijx}. Unfortunately, light \gls*{dm} halos are difficult to probe as they are not expected to accumulate enough baryonic matter to form stars and hence are truly \emph{dark} \cite{Efstathiou:1992zz,Fitts:2016usl}. If \gls*{dm} has significant self-interactions, such halos might be detectable by searching for the self-annihilation or decay products of \gls*{dm} \cite{Adhikari:2022sbh}. However, even if such interactions are not present, light halos can potentially be probed through their irreducible gravitational effects. In this chapter we study one such probe: galaxy-galaxy strong gravitational lensing.
+
+\paragraph*{Strong gravitational lensing as a dark matter probe.} In strong gravitational lensing, the gravitational field of a mass distribution acts as a \emph{lens} by magnifying and distorting the light flux coming from a background \emph{source} \cite{Kochanek:aa}. This leads to multiple magnified and distorted images of the source, as explained by general relativity. The effect is sensitive only to how matter is distributed, regardless of its physical nature (baryonic/DM), and thus provides a direct way of probing the distribution of \gls*{dm} at small scales (see Ref.~\cite{Vegetti:2023mgp} for a recent review). 
+
+% Hence, it provides a direct way of probing the distribution of \gls*{dm} at small scales, by means of the distortions to the images due to substructures on top of the main lens mass distribution. Therefore, gravitational lensing provides a pristine probe of small-scale structures and can in principle distinguish between \gls*{cdm} and \gls*{wdm} scenarios.
+
+
+Indeed, a \emph{perturber} (\ie, a subhalo or \gls*{los} halo lying somewhere between the observer and source) positioned near one of these images contributes additional, much more localized distortions, on top of the main lens mass distribution. By carefully analyzing the relationship between the multiple images of the source, the distortions from dark perturbers can be disentangled from possible variations in the source light. Thus, a population of dark perturbers can collectively cause perturbations to images that can be detected statistically in order to constrain population-level parameters, such as the suppression scale in the the low-mass end of the \gls*{hmf}, which are dictated by the fundamental properties of \gls*{dm}. Therefore, gravitational lensing provides a pristine probe of small-scale structures and can in principle distinguish between \gls*{dm} scenarios.
+
+\paragraph*{Strong lensing image analysis.} Various different methods have been suggested to analyse the effects of small-scale structures on lensing images \cite{Drlica-Wagner:2019aa}. These methods usually target two different types of lensing systems that differ in the lensed source: quadruply-lensed quasars, and extended background galaxies that get lensed into extended arcs or complete Einstein rings.
+
+In the former case, the source is a nearly point-like quasar that is lensed into four compact images  (\emph{``quads''}). These images' positions and flux ratios comprise the summary statistics for these systems. The presence of a perturber near one of these images would cause anomalies in the ratios of their fluxes relative to what would be predicted assuming a smooth lens mass distribution. Evidence for flux ratio anomalies due to perturber was first found in Ref.~\cite{Mao:1997ek}. Later, Ref.~\cite{Dalal:2001fq} derived a statistical constraint on the substructure fraction in the lensing galaxies using a small sample of seven lensed quasars. Ref.~\cite{Nierenberg:2014cga} showed that flux-ratio anomalies can also be used to detect individual low-mass subhalos. Several studies derived upper limits on the subhalo mass function %half-mode mass $\mhm$
+\cite{Nierenberg:2017vlg}, also including perturbations due to \gls*{los} halos \cite{Gilman:2017voy, Gilman:2019nap}. Further investigations pointed out the importance of correctly modeling baryonic structure in the main lens, in order to avoid systematic errors while constraining \gls*{dm} substructure abundance with flux-ratio anomalies \cite{Hsueh:2016aih, Hsueh:2017zfs, Hsueh:2019ynk}. 
+
+Here we focus on \emph{gravitational imaging}, which refers to the analysis of lenses with extended arcs \cite{Koopmans:2005ig,Vegetti:2008eg,Vegetti:2009gw}. The observation in this case consists of a whole image. On one hand, such images cover a larger area of the sky than the four point-like images in quads, potentially providing more sensitivity to detect perturbations due to perturbers, in the form of percent-level variations in the shape of the predicted lensed light based on a smooth lens model. On the other hand, extracting this information requires modeling the source galaxy's light, which generally has a complex morphology. The gravitational imaging technique was first introduced in Ref.~\cite{Koopmans:2005nr} and further developed in Refs.~\cite{Vegetti:2008eg, Vegetti:2009gw}. Its application to real data has so far yielded to several detections of individual heavy ($>10^8 \si{\solmass}$) perturbers using deep, high-resolution observations in the optical from the \gls*{hst} and Keck as well as in radio data from Atacama Large Millimeter/sub-millimeter Array \cite{Vegetti:2010wa, Vegetti:2009cz, Vegetti:2012mc, Hezaveh:2016ltk,Diego:2022mii}. Moreover, measurements and non-detections of individual perturbers in samples of gravitational lens systems can be converted to constraints on the (sub)halo mass function and thus dark matter's properties \cite{Vegetti:2014lqa, Vegetti:2018dly,Ritondale:2018cvp}. 
+% Moreover, samples of gravitational lens systems have been analyzed in \cite{Vegetti_2014, Vegetti_2018}, and, including \gls*{los} halos modeling, in \cite{Ritondale_2019}, in order to derive constraints on the \gls*{hmf} using detections and non-detections of individual substructures.
+
+Established gravitational imaging analyses, such as the method in Refs.~\cite{Vegetti:2008eg,Hezaveh:2016ltk}, use \emph{likelihood-based} inference to infer the properties of perturbers. The central mathematical object in such approaches is the likelihood, a probabilistic model $p(\data \mid \param)$ for the data $\data$ given some parameters $\param$ for the lens, source, perturbers and possibly other (hyper)parameters.\footnote{For example, the hyperparameters could include the pixel size for pixelated sources or strength of source regularization.}   
+Likelihood-based tools, such as \gls*{mcmc} or nested sampling~\cite{Skilling:2004pqw}, do not directly produce marginal posteriors but instead compute the \emph{joint posterior} $p(\param \mid \data_0)$, which must then be marginalized over. 
+
+The computational expense of sampling from the high-dimensional joint posterior imposes restrictions on the realism of lensing models that can be analyzed. One such restriction common to most analyses is to  assume a particular form of the noise and source model so that the source uncertainties can be excluded from the sampling and marginalized over analytically \cite{Hezaveh:2016ltk,Vegetti:2008eg,Vegetti:2009cz,Vegetti:2010wa,Vegetti:2012mc}. This makes it difficult to explore more complex source models described by \eg~generative machine learning methods or noise artifacts like cosmic ray streaks that cannot be described by an analytic likelihood.
+
+An additional difficulty with likelihood-based analyses is that each run of \gls*{mcmc} or nested sampling produces posterior samples for just a single observation. Directly exploring the systematics, biases and other statistical properties of a particular lensing model is thus extremely time-consuming, necessitating rerunning posterior sampling many times for different input observations. This also makes analyses such as mapping perturber measurement sensitivity costly. It is noteworthy that recently Ref.~\cite{Nightingale:2022bhh} pushed to the limits how far one can feasibly go using likelihood-based analyses, fitting 54 images with 5 different mass models.
+
+Likelihood-based analyses also typically assume no more than two perturbers are present in each image. Allowing for $n$ perturbers would cause the joint posterior to become highly multimodal, with approximately $n!$ modes due exact invariance of the observation under relabeling of perturbers. In these frameworks, it is then challenging to perform statistical inference of quantities such as the posterior for substructure population-level parameter of interest, marginalizing over all source, lens, and substructures parameters to get the marginal of interest.
+
+%In reality, constraining collective substructure properties from gravitational lensing images is an extremely difficult problem. In fact, inferring marginal posteriors for the \gls*{hmf} cutoff requires marginalizing over all source, lens, and substructures parameters to get the marginal likelihood for the population-level parameter of interest, thus involving a time-consuming exploration of a very high-dimensional parameter space for complex realistic models. Therefore, \gls*{mcmc} or nested sampling methods would imply an intractable sampling from the high-dimensional joint posterior. 
+
+
+\emph{Transdimensional Bayesian inference} partially overcomes this traditional likelihood-based methods' challenge, by using transdimensional \gls*{mcmc} to infer the probabilities of different possible populations of perturbers, albeit at substantial computational cost \cite{Brewer:2015yya,Daylan:2017kfh}. 
+
+An alternative strategy involves linearizing the gravitational potential via a \emph{Taylor expansion} of the lens equation. By employing a Taylor expansion, it becomes feasible to capture all small-scales \gls*{dm} substructures without the need to parameterize them directly in the likelihood function \cite{Vegetti:2008eg, Koopmans:2005nr, Galan:2022ifd}. This technique is therefore able to account for the full \gls*{dm} subhalo population (a part from the effects due to the curl-component induced by multi-plane lensing effects).
+
+Another viable approach to reduce the dimensionality of the problem and enable inference of the collective effects of a large number of low-mass substructures at the statistical level requires engineering \emph{summary statistics} from first principles, such as the convergence \gls*{ps} for different subhalo populations \cite{DiazRivero:2017xkd, DiazRivero:2018aa, Brennan:2018jhq}, and also for \gls*{los} populations \cite{CaganSengul:2020nat}. However, this approach is not directly applicable to observations, because we do not have access to the true displacement field from the data. Building upon this, it is possible to relate the \gls*{ps} of the surface brightness fluctuations in strong lens images to the lens potential fluctuations arising from \gls*{dm} distribution that contribute to the convergence \gls*{ps} \cite{Chatterjee:2017orx, Cyr-Racine:2019aa, Bayer:2018vhy}. Another summary statistic that has been employed is the residuals between the image and best-fit reconstruction excluding substructure, that is related to the (sub)halo mass function parameters. In particular, this summary statistic has been successfully employed to constrain the \gls*{hmf} suppression scale using \gls*{abc} \cite{Birrer:2017rpp, He:2020rkj}, a likelihood-free inference method based on a rejection algorithm, as seen in Section~\ref{sec:sbi}. This approach reduces the dimensionality of the problem and enable inference of the collective effects of a large number of low-mass substructures at the statistical level. However, it is unknown how much information such approach discards. 
+
+Another class of methods that has developed in recent years uses \emph{neural networks} to measure lens parameters \cite{Hezaveh:2017sht, PerreaultLevasseur:2017ltk,  Morningstar:2019szx}, quantifying the structure of gravitational lens potential \cite{Vernardos:2020aa}, detect individual subhalos \cite{Rivero:2020aa}, distinguish different types of \gls*{dm} substructure based on their lensing signatures \cite{Alexander:2019puy}, and classify whether each pixel in an image contained a subhalo in a given mass bin \cite{Ostdiek:2020cqz,Ostdiek:2020mvo}. Still, these methods need lots of data to amortize over all possible variations in lensing systems. In fact, amortized methods learn the posterior for any data, generated by any parameter over the whole range of the prior. But learning an amortized posterior is unnecessary if only a small range of parameters are consistent with a target observation.
+ 
+
+\paragraph*{This work.} In this work, we demonstrate that a \gls*{sbi} \cite{Cranmer:2019eaq} method called truncated marginal neural ratio estimation \cite{Miller:2020hua,Miller:2021aa}, from here on \gls*{tmnre}, can circumvent the inference challenges discussed in the above paragraphs. 
+In particular, we use strong gravitational lensing to constrain \gls*{wdm} models \cite{Colin:2000dn, Lovell:2013ola}, which are well-motivated from a particle physics perspective (see \eg~sterile neutrinos \cite{Boyarsky:2018tvu} and gravitinos \cite{Bond:1982uy}). In \gls*{wdm} models \gls*{dm} particles have non-negligible thermal velocities that allow them to free-stream out of density perturbations, effectively preventing small-scale structure formation. The scale at which this happens depends on model parameters and is parametrised by the half-mode mass, $\mhm$, in the \gls*{hmf}. Therefore, one of the viable way to discriminate between \gls*{cdm} and alternative \gls*{wdm} models is to constrain the low-mass end of the \gls*{hmf} by probing small-scale \gls*{dm} halos which are completely devoid of stars and truly \emph{dark}, whose only signature is then gravitational. 
+
+Here, we present the first analysis pipeline that combines parametric lensing models with recent \gls*{tmnre} developments to infer the half-mode mass $\mhm$ of the subhalo \gls*{hmf} directly from images by combining a set of realistic simulated galaxy-galaxy strong lenses, 
+%to \emph{measure the suppression scale of the subhalo \gls*{hmf} directly from images by combining multiple observations}.  
+In fact, there are currently around a hundred strong lensing observations suitable for substructure inference, most of which come from the SLACS \cite{Bolton:2005nf} and BELLS \cite{BOSS:2011bef} surveys. In the near future, new and future telescopes like JWST \cite{Gardner:2006ky}, ELT \cite{Simon:2019aa}, Euclid \cite{Refregier:2010ss, EUCLID:2011zbd}, SKA \cite{Koopmans:2004gf}, and LSST \cite{LSSTDarkEnergyScience:2020oya} will greatly increase the quality of data suitable for gravitational imaging analyses as well as its quantity, from $\order{100}$ to $\order{10^5}$ images \cite{Collett:2015roa, McKean:2015aa}. It is then extremely important to be able to combine the information coming from different observations in the statistical analysis.
+
+%For the statistical analysis we employ \gls*{tmnre}. Developed by Ref.~\cite{Hermans:2019ioj} and Ref.~\cite{Miller:2020hua}, \gls*{mnre} is a neural \gls*{sbi} method that makes it possible to learn the marginal posterior approximation for a specified subset of model parameters of interest directly from the full input data that, in our case, corresponds to the observed lensed images, without the need for hand-crafted summary statistics. This method improves the simulator efficiency and the quality of inference. Moreover, \gls*{mnre} is amortized, which  enables important statistical consistency tests, which would have been extremely expensive with likelihood-based inference, like the expected coverage test we employ in Section~\ref{subsec:test}. 
+As discussed in Chapter~\ref{cha:sbi}, \gls*{sbi} refers to a class of statistical inference methods that use the output of a stochastic simulator that need not have a known likelihood. In particular, \gls*{nre}, first presented in \cite{Hermans:2019ioj}, trains a neural network to map from observations directly to \emph{marginal posteriors} for a specified subset of model parameters (\eg~the Einstein radius of a lens). This bypasses the requirement of likelihood-based inference to sample the joint posterior. In contrast to methods like \gls*{abc}, this also removes the need to engineer summary statistics \cite{He:2020rkj} as they are in effect learned directly from the training data. Since \gls*{nre} learns a marginal posterior \emph{function}, it is straightforward to check the statistical properties of the inference results for different observations. \gls*{tmnre} further extends \gls*{nre} by focusing training data generation in the regions of parameter space most relevant for analyzing a particular observation over a sequence of inference rounds. This substantially reduces the number of simulations required to train the inference network as well as the required network complexity. This truncation method applied to strong-lensing images was proposed in Ref.~\cite{Karchev:2021fro} and used in Ref.~\cite{Coogan:2020yux} to learn marginal posterior approximations for individual subhalo parameters, marginalizing over lens and source uncertainties given an observation.
+
+Several other works have applied \gls*{sbi} to substructure lensing. In Ref.~\cite{Zhang:2022djp} a likelihood-ratio estimation technique similar to \gls*{tmnre} was employed to measure density profile parameters of subhalos from images. Ref.~\cite{Wagner-Carena:2022mrn} recently applied neural posterior estimation to measure the subhalo \gls*{hmf} normalization in mock lensing images using real galaxy images as sources. Ref.~\cite{Brehmer:2019jyt} utilized a ``likelihood-based'' \gls*{sbi} method requiring the simulator's score\footnote{
+    The score is the derivative of the log-likelihood for a given observation with respect to the model's parameters.
+} to measure the slope and normalization of a subhalo \gls*{hmf} in simple mock images.
+%Up to now, this approach has been applied in simplified modeling frameworks: Ref.~\cite{Hermans:2019ioj} focuses on recovering the Einstein radius of a gravitational lens marginalizing over 15 source and lens mass distribution parameters, whereas Ref.~\cite{Brehmer:2019jyt} estimates the slope and normalization of a \gls*{cdm} subhalo mass function. \gls*{sbi} using neural posterior density estimator and hierarchical inference have also been employed in Ref.~\cite{Wagner-Carena:2022mrn} to infer the \gls*{cdm} subhalo mass function normalization from a set of strong-lensing images, generated using real galaxy images as a source model, including realistic observational noise effects from \gls*{hst} and accounting for the mean expected convergence from \gls*{los} halos. 
+
+The present work complements these efforts in several ways. First, it demonstrates that our \emph{hierarchical} \gls*{tmnre} approach is able to efficiently and accurately infer the statistic of the \gls*{hmf} suppression scale given a set of \gls*{hst} resolution observation. Then, it illustrates the importance of combining the information coming from different observations in the statistical analysis, especially in light of near-future data delivery. Lastly, it shows that \gls*{tmnre} enables statistical checks that would be extremely expensive with likelihood-based inference since they would require rerunning the sampling machinery on numerous mock observations.
+
+This chapter is organized as follows. In Section~\ref{sec:sl-model} we describe our strong lensing model, which uses an analytic source and main lens in conjunction with a well-motivated perturber model that accounts for both subhalos and \gls*{los} halos. In Section~\ref{sec:sl-analysis} we briefly discuss the inference methodology based on \gls*{tmnre} employed in the statistical analysis. Then, we show our results for hierarchical inference of the halo mass function suppression scale from an ensemble of lenses in Section~\ref{sec:sl-results}. Finally, we conclude in Section~\ref{sec:sl-conclusions}. 
+This work will help form the basis for \gls*{sbi}-based analysis of strong lensing images as a dark matter probe in existing and future lensing data.
+
+
+
+
+\section{Modeling strong lensing observations}  \label{sec:sl-model}
+
+Here we review how we model strong lensing images. We implement our lensing model in \texttt{PyTorch} \cite{pytorch} so that we can leverage GPUs to rapidly generate large numbers of observational data (a single-channel telescope image).
+
+\subsection{The physics of strong lensing}
+Before delving into modeling details, we briefly summarize the key points of the physics of gravitational lensing, referring the reader to \eg~Ref.~\cite{Meneghetti:2016aa} for a more detailed overview. In strong-lensing systems the mass distribution of a foreground galaxy gravitationally lenses the light rays coming from a background source, resulting in an arc-like image in the case of an extended galaxy source. We assume that mass densities are low enough to treat the gravitational field of the matter in the image plane in the Newtonian approximation of \gls*{gr}. In this case the metric is fully characterized by the lens' gravitational potential $\psi$. We also adopt the thin lens approximation, which assumes all the lens mass lies in a single \emph{image plane} and all the source light is emitted from a \emph{source plane}. 
+
+We will be using $\vec{\xi}\equiv(\xi_x, \xi_y)$ and $\vec{x}\equiv(x, y)$ as two-dimensional angular coordinates in the image and source planes respectively, and use $z$ to indicate distances along the orthogonal dimension. Since the image plane covers a small angular patch of the sky and the lensing deflections are small in the Newtonian limit, the coordinate system can be treated as Cartesian.
+
+The configuration, then, is determined by two fields: the distribution of surface brightness in the source plane, $\beta(\vec{x})$, and the distribution of mass in the image plane, described by the projected potential:
+\begin{equation}
+	\Psi(\vec{\xi})\equiv \int_{-\infty}^{\infty} \psi(\xi_x, \xi_y, z) \mathrm{d}z
+\end{equation}
+
+Under these assumptions, the source-plane coordinate to which a light ray through the image plane traces back is given by the simple \emph{lens equation}
+\begin{equation} \label{eq:gl-lensing}
+    \vec{x} = \vec{\xi} - \vec{\alpha}(\vec{\xi}) \, .
+\end{equation}
+The displacement field $\vec\alpha$ is determined by the projected potential:
+\begin{equation} \label{eq:disp_grad}
+    \vec{\alpha}(\vec{\xi}) = \frac{D_{LS}}{D_S} \frac{2}{c^2} \frac{\vec{\nabla}_{\vec{\xi}} \Psi(\vec\xi)}{D_L} \, ,
+\end{equation}
+where the gradient is taken in the image plane and should have dimensions of inverse length, whence the introduction of the observer-lens angular diameter distance $D_L$. The expression also involves the angular diameter distances $D_{LS}$ (from the lens to the source), and $D_S$ (from the observer to the source).\footnote{
+    We compute angular diameter distances with \texttt{astropy}~\cite{Astropy:2013muo,Astropy:2018wqo} using the flat cosmology from Planck \cite{Planck:2018vyg}.
+} 
+We illustrate in Figure~\ref{fig:gl-lensing} the geometry of the system.
+
+\begin{figure*}
+    \centering
+    \includegraphics[width=0.8\linewidth]{Figures/GL-lensing.pdf}
+    \caption{Thin lens geometry. The lensing mass $M$ located at $\vec\xi'$ bends the light ray (thick line) emanating from the point $\vec x$, so that to the observer it looks like it is coming from the direction of $\vec\xi$ . General relativity predicts the deflection angle $\vec\alpha'$  \emph{as viewed from the image plane} based on the mass $M$ and the impact parameter $\vec b = \vec \xi - \vec \xi '$. It then has to be rescaled by $\frac{D_{LS}}{D_S}$ to obtain the displacement field $\vec\alpha$ (as viewed by the observer) for use in Equation~\eqref{eq:gl-lensing}. Angles are all assumed to be small enough that they can be used for Euclidean calculations. The dashed line is the optical axis perpendicular to the planes and connects the origins of the coordinate systems for each plane. The figure is a reproduction of Figure 2 in Ref.~\cite{Karchev:2021fro}.}
+    \label{fig:gl-lensing}
+\end{figure*}
+
+From a computational standpoint it is more convenient to represent Equation~\eqref{eq:disp_grad} as an integral. Using the Poisson equation $\nabla_2 \Psi= 4\pi G\rho$ and setting appropriate boundary conditions:
+\begin{equation} \label{eq:disp_int}
+    \vec{\alpha}(\vec{\xi}) = \frac{4 G}{c^2} \frac{D_{LS}}{D_L \, D_S} \int \Sigma(\vec{\xi}') \frac{\vec{\xi} - \vec{\xi}'}{\mid\vec{\xi} - \vec{\xi}'\mid^2}   \mathrm{d}{(D_L \vec{\xi}')} \, ,
+\end{equation}
+where the integral is performed over the image plane, and where $c$ is the speed of light and $G$ is the gravitational constant.
+
+Here $\Sigma$ is the projected (surface) mass density related to the 3D mass density $\rho$ by an integration along the coordinate perpendicular to the lens plane $z$:
+\begin{equation}
+	\Sigma(\vec\xi) \equiv \int_{-\infty}^{\infty} \rho({\xi}_x, {\xi}_y, z) \mathrm{d}{z},
+\end{equation}
+similarly to the expression for the projected potential.
+
+The expression in Equation~\eqref{eq:disp_int} can be simplified by introducing the convergence $\kappa$ in terms of the critical surface density $\Sigma_{\mathrm{cr}}$:
+\begin{equation}
+    \kappa(\vec{\xi})=\cfrac{\Sigma(\vec{\xi})}{\Sigma_{\mathrm{cr}}},
+    \quad \Sigma_{\mathrm{cr}}\equiv\cfrac{c^2}{4\pi G}\cfrac{D_S}{D_L D_{LS}} \, .
+\end{equation}
+If  $\kappa > 1$, a lens can form multiple images \cite[Section 2.6]{Meneghetti:2016aa}. The threshold for this to happen is set by the critical surface density, and it is evident from its expression that for a fixed distance to the lens ($D_L $) further away sources  ($D_S$) are lensed more easily, since they require smaller deflections.
+
+Furthermore, it can be shown that the convergence $\kappa$ is related to the isotropic part of the trace of the Jacobian of the lensing transformation through
+\begin{equation}\label{eq:lens-jacobian}
+	\frac{\dd{\vec{x}}}{\dd{\vec{\xi}}} = \mqty(\dmat[0]{1-\kappa, 1-\kappa}) - \mqty(\gamma_1 & \gamma_2 \\ \gamma_2 & -\gamma_1),
+\end{equation}
+where the second part is the shear (discussed more in details in Section~\ref{subsec:sl-model-lens}).
+Another important quantity is the inverse of the Jacobian's determinant, the magnification
+\begin{equation}
+	\mathcal{M} \equiv \mid\frac{\dd{\vec{\xi}}}{\dd{\vec{x}}}\mid  = \qty[(1-\kappa)^2 - \qty(\gamma_1^2 + \gamma_2^2)]^{-1},
+\end{equation}
+which is a measure of how much the solid angle spanned by the source is enlarged, or equivalently, of how gravitational focusing directs a larger fraction of the energy radiated by the source to the observer \cite{Bartelmann:1999yn}. Thus, when the convergence $\kappa$ and the shear $\gamma$ are equal or greater than unity, sources are \emph{strongly} magnified, and we can use the magnitude of the magnification to differentiate between \emph{strong} from \emph{weak} lensing regimes.
+
+While lensing does change the apparent solid angle of a source, it is worth noting that it conserves energy, since it merely alters the trajectories of photons rather than creating or destroying them. As a result, the surface brightness $\beta(\vec{\xi})$ in the image plane is equal to the surface brightness at the point to which it traces back in the source plane (assuming one isolated source):
+\begin{equation}
+    \beta(\vec{\xi}) = \beta(\vec{x}(\vec{\xi})) \, .
+\end{equation}
+
+%It is important to note, however, that lensing does not create or destroy photons (and thus, conserves energy.}). Thus, the amount of light arriving at the observer is proportional to the area \emph{in the image plane} that the source subtends, which effectively acts as a collecting area for light that is then simply rerouted just as with conventional lenses. This means that \emph{lensing conserves surface brightness} around infinitesimal points, and thus the surface brightness registered by the observer (in the absence of other sources) is
+%\begin{eq}
+%	\sbr(\ximg) = \sbr(\x\qty(\ximg)).
+%\end{eq}
+%
+%It is obvious from this expression that the lens and the source are entirely degenerate: for any observation there is for every deflection field (that does not form multiple images!) a surface brightness configuration that can reproduce the observation. The reverse (that one can find deflection fields that map distinct sources to the same image) is also sometimes true, giving rise to the mass-sheet \cite{masssheetdegeneracy} and source-position degeneracies \cite{sourcepositiontransformation} (the latter being more general but approximate). As a consequence, the spatial scale of the source cannot be conclusively determined (in the absence of time-delay data \ered{or additional constrants on the lens mass profile}) since a sheet of constant mass density could be magnifying it uniformly by an arbitrary amount \cite{lensing-short}.
+
+
+\bigskip
+
+Given the physics of strong lensing, in order to fully specify a strong-lensing model we then need two main ingredients: the lens model, which describes the total mass distribution of the lens, and the source model, which describes the surface brightness profile of the background source. It is common to split the lens model into a macroscopic smooth component (main lens and external shear) and a substructure\footnote{Throughout this thesis, we use the terms `small-scale structures', `substructures', and `low-mass halos' when considering both subhalos of the main lens and line-of-sight halos.} component, due to subhalos and line-of-sight halos. Each lensing ingredient can be directly superimposed by summing their respective displacement fields in the lens plane:
+\begin{equation}
+    \vec{\alpha} = \vec{\alpha}_\mathrm{lens} + \vec{\alpha}_\mathrm{ext} + \sum_{i=1}^{N_{\mathrm{sub}}} \vec{\alpha}_\mathrm{sub,i} + \sum_{i=1}^{N_{\mathrm{los}}} \vec{\alpha}_\mathrm{los,i}.
+\end{equation}
+In the following sections, we will describe each component of the model we use to simulate mock images of gravitational lenses: the source, the main lens, the dark matter perturbers, and instrumental noise. The model and its priors are summarized in Table~\ref{tab:pop-model}.
+
+\begin{table}
+\begin{center}
+\resizebox{0.9\columnwidth}{!}{%
+    \begin{tabular}{l l l c }
+        \toprule
+        Parameter & {True value} & Prior & Description \\
+        \midrule
+        \textbf{Main lens} &  &  &  SPLE \\
+        $\theta_E$ [\si{\arcsecond}] &  & $\Uniform(1.,2.)$  & Einstein radius \\
+        $\xi_{0,x}$ [\si{\arcsecond}] &  & $\Uniform(-0.2,0.2)$  & lens center x axis \\
+        $\xi_{0,y}$ [\si{\arcsecond}] &  & $\Uniform(-0.2,0.2)$  & lens center y axis \\
+        $q_l$ &  & $\Uniform(0.1,1.)$ & axis ratio \\
+        $\phi_l$ [\si{\radian}]&  & $\Uniform(0,2\pi)$  & rotation angle \\
+        $\gamma$ & 2.1 & -  & slope \\
+        $z_\mathrm{lens}$ & 0.5 & -  & lens redshift \\
+        \midrule
+        \textbf{External shear}  &  &  &   \\
+        $\gamma_1$ &  & $\Uniform(-0.05,0.05)$  & $1^{\mathrm{st}}$ component\\
+        $\gamma_2$ &  & $\Uniform(-0.05,0.05)$   & $2^{\mathrm{nd}}$ component\\
+        \midrule
+        \textbf{Source} &  &  &  Sérsic \\
+        $I_e$ &  & $\Uniform(0.,4.)$  & surface intensity \\
+        $r_e$ [\si{\arcsecond}] &  &  $\Uniform(0.1,2.5)$ & effective radius \\
+        $x_0$ [\si{\arcsecond}] &  & $\Uniform(-0.1,0.1)$ & source center x axis\\
+        $y_0$ [\si{\arcsecond}] &  & $\Uniform(-0.1,0.1)$ & source center y axis\\
+        $q_s$ &  & $\Uniform(0.1,1.)$ & axis ratio\\
+        $\phi_s$ [\si{\radian}] &  &  $\Uniform(0,2\pi)$  & position angle\\
+        $n$&  &  $\Uniform(0.1,4.)$  & index\\
+        $z_\mathrm{src}$ & 2 & -  & source redshift\\
+        \midrule
+        \textbf{Subhalos} & & &  tNFW \\
+        $\vec{p}$ [\si{\arcsecond}] & {$\in[-2.5, 2.5]$} & $\Uniform_{2\mathrm{D}}(-2.5, 2.5)$ & position\\
+        $m_{200}$ [\si{\solmass}] & {$\in[10^7, 10^{10}]$} & \cite{Giocoli:2009ie} & virial mass\\
+        $c_{200}$ & 15. & - & concentration \\
+        $\tau$ & 6. & - & truncation\\
+        \midrule
+        \textbf{\gls*{los} halos} &  &  &  projected tNFW \\
+        $\vec{p}$ [\si{\arcsecond}] & {$\in[-2.5, 2.5]$} & $\Uniform_{2\mathrm{D}}(-2.5, 2.5)$ & position\\
+        $m_{200}$ [\si{\solmass}] & {$\in[10^7, 10^{10}]$} & \cite{Tinker:2008ff} & virial mass\\
+        $z_{\mathrm{LOS}}$ & {$\in[0, z_\mathrm{src}]$} &  \cite{Tinker:2008ff} & LOS redshift\\
+        $c_{200}$ & 15. & - & concentration \\
+        $\tau$ & 6. & - & truncation\\
+        \midrule
+        \textbf{\gls*{wdm}} &  & &  \\
+        $\mhm$ [\si{\solmass}] & & $\log\Uniform(10^7, 10^{10})$ & half-mode mass\\
+        \bottomrule
+    \end{tabular}
+}
+\end{center}
+\caption{Summary of model parameters used for the simulated images in this work. When a prior distribution is not specified, the parameter is fixed to the true value.}
+\label{tab:pop-model}
+\end{table}
+
+
+
+\subsection{Source model} \label{subsec:source}
+To model the surface brightness of the source galaxy, we adopt the widely-used Sérsic profile \cite{Sersic:1963aa}. The surface brightness distribution is parameterized by 
+\begin{equation}\label{eq:sersic}
+    \beta(\vec{x})=I_e \exp{-k_n\left[\left(\cfrac{R(\vec{x})}{r_e}\right)^{1/n}-1\right]},
+\end{equation}
+where $I_e$ is the surface intensity at the half-light radius $r_e$. The radial parameter $r(\vec{x})=\sqrt{r_x^2+r_y^2}$ is the length of the elliptical radial coordinate vector
+\begin{equation}
+    \begin{pmatrix} 
+        r_x \\ r_y 
+    \end{pmatrix} = 
+    \begin{pmatrix} 
+      \sqrt{q_s} & 0 \\ 0 & 1/\sqrt{q_s} 
+    \end{pmatrix} 
+    \begin{pmatrix} 
+        \cos\phi_s & \sin\phi_s \\ -\sin\phi_s & \cos\phi_s 
+    \end{pmatrix} 
+    \begin{pmatrix} 
+        x - x_{0,s} \\ y - y_{0,s} 
+    \end{pmatrix},
+\end{equation}
+which depends on the source's position angle $\phi_s$, axis ratio $q_s$, and center of light position $(x_{0,s}, y_{0,s})$. 
+
+The normalization $k_n$ is related to the index $n$ by an implicit transcendental equation in terms of the complete and lower incomplete gamma functions $2\gamma(2n, k_n)=\Gamma(2n)$. We use the expansion in series from Ref.~\cite{Ciotti:1999zs}, 
+\begin{equation}
+    k_n \approx 2 n - \frac{1}{3} + \frac{4}{405 n} + \frac{46}{25515 n^2} + \frac{131}{1148175 n^3} - \frac{2194697}{30690717750 n^4} \, .
+\end{equation}
+valid over a wide range of indices, $n>0.36$. For typical galaxies $1/2 < n < 10$.
+
+Therefore, our source model is parametrised by seven variables that we collect in the vector $\psrc \equiv\{I_e, r_e, x_{0,s}, y_{0,s}, q_s, \phi_s, n\}$. We fix the source's redshift to $z_\mathrm{source} = 2$.
+
+\subsection{Main lens model}\label{subsec:sl-model-lens}
+
+%\footnote{
+%    Throughout our work,  we use the terms “simulated data” for data used during inference and “mock observations” for the simulated data that we analyze.
+%    }     
+    
+We adopt the \gls*{sple} model for the main lens galaxy, which is capable of modeling the gravitational potentials of strong lenses to near the percent level~\cite{Suyu:2008zp}. Furthermore, the \gls*{sple} model has been shown to be a more adequate representation of the combined \gls*{dm} and baryon mass distribution in the inner regions of galaxies, to which strong lensing is most sensitive \cite{Suyu:2008zp}. The \gls*{sple} deflection field can be expressed in closed-form as a complex field $\alpha = \alpha_x + i \alpha_y$ \cite{Tessore:2015baa,ORiordan:2020aa}:
+\begin{equation}
+\begin{split}
+    \vec{\alpha}^\mathrm{SPLE}(\vec{\xi}) = \theta_E & \frac{2 q_\mathrm{l}^{1/2}}{1 + q_\mathrm{l}} \left( \frac{\theta_E}{r} \right)^{\gamma - 2} e^{i \varphi} \\
+    & \cdot \hypgeom\left( 1, \frac{\gamma - 1}{2}, \frac{5 - \gamma}{2}, -\frac{1-q_\mathrm{l}}{1+q_\mathrm{l}} e^{2 i \varphi} \right) \, .
+\end{split}
+\end{equation}
+Here $(r, \varphi)$ are elliptical coordinates, related to the Cartesian coordinates $\vec{\xi}$ through a transformation parametrized by the lens' orientation $\phi_\mathrm{l}$, axis ratio $q_\mathrm{l}$ and position $(\xi_\mathrm{x, 0}, \xi_\mathrm{y, 0})$:
+\begin{align}
+    \begin{pmatrix} r_x \\ r_y \end{pmatrix} &= \begin{pmatrix} q_\mathrm{l}^{1/2} & 0 \\ 0 & q_\mathrm{l}^{-1/2} \end{pmatrix} \begin{pmatrix} \cos\phi_\mathrm{l} & \sin\phi_\mathrm{l} \\ -\sin\phi_\mathrm{l} & \cos\phi_\mathrm{l} \end{pmatrix} \begin{pmatrix} \xi_x - \xi_{x, 0} \\ \xi_y - \xi_{y, 0} \end{pmatrix} \, ,\\
+    \tan \varphi &= \frac{r_y}{r_x}.
+\end{align}
+
+In the circular ($q=1$) isothermal ($\gamma=2$) case this reduces to $\alpha=\theta_E e^{i\varphi}$, \ie~is an isotropic constant, as is well-known. Since the hypergeometric function $\hypgeom$, however, is not implemented in \texttt{PyTorch}, we instead pretabulate its value as a function of $\phi_\mathrm{l}$, $q_\mathrm{l}$ and $\gamma$ and interpolate at runtime, as described in Ref.~\cite{Chianese:2019ifk}. This results in very fast code with negligible output degradation.
+
+The slope $\gamma$ has a complicated degeneracy with the size of the source \cite{Schneider:2013sxa,Schneider:2013wga}. Roughly, larger $\gamma$ values cause the spatial scale of the source to increase \cite[Section 3.3]{Nightingale:2014aa}. For simplicity we fix $\gamma = 2.1$. In principle, inferring the slope is possible, but it requires more training data and leads to increased uncertainties in both lens and source parameters.
+
+We also assume the lens galaxy's light has been perfectly subtracted, and fix its redshift to $z_\mathrm{lens} = 0.5$.
+
+To account for the weak lensing due to large-scale structure located along the line of sight to the source, we also include an external shear component, which is constant across the image plane:
+\begin{equation}
+    \vec{\alpha}^\mathrm{shear}(\vec{\xi}) = \begin{pmatrix} \gamma_1 & \gamma_2 \\ \gamma_2 & -\gamma_1 \end{pmatrix} \vec{\xi} \, .
+\end{equation}
+
+Our main lens model thus has seven parameters: the \gls*{sple} parameters $(\xi_{x, 0}, \xi_{y, 0}, \phi_\mathrm{l}, q_\mathrm{l}, \theta_E)$ and the external shear parameters $(\gamma_1, \gamma_2)$, which we denote collectively with $\plens$.
+
+\subsection{Small-scale structures model} \label{subsec:substructure}
+
+\begin{figure}
+	\centering
+	\begin{subfigure}[b]{0.5\linewidth}  
+	\centering
+	\includegraphics[width=\linewidth]{GL-sub-convergence.png}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.46\linewidth}
+	\centering
+	\includegraphics[width=\linewidth]{GL-los-z-dist.png}
+	\end{subfigure} 
+	\caption{\textit{Left panel:} Convergence map for a \gls*{cdm} subhalo population in the adopted mass range. The convergence map shows how the deflecting mass from all the subhalo lenses is distributed. The full map size is $1 \times 1\ \si{\Mpc}$. We mark in red the virial radius of the main lens halo, in blue its Einstein radius, and in orange the $5 \times 5\ \si{\arcsec}$ lensing image area. \textit{Right panel: }\gls*{los} halos distribution in redshift for our source and lens redshifts configuration, $z_\mathrm{lens}=0.5$ and $z_\mathrm{source}=2$.}
+	\label{fig:sl-substructure}
+\end{figure}
+
+\Gls*{dm} substructures can be divided into two categories: subhalos that orbit around the main halo at the lens redshift, and \gls*{los} halos distributed between the source and the observer. \Gls*{los} halos are a more direct probe of free-streaming-induced small-scale structure suppression, because they are less affected by baryonic processes and environmental effects, such tidal stripping interactions with the main halo \cite{Despali:2017ksx}. For this reason and the fact that they are expected to be more abundant than subhalos in a lensing system \cite{Despali:2017ksx, He:2021rjd}, it is very important to model them as well, in order to correctly estimate the collective effects of all substructures on the lensing image. 
+
+\subsubsection{Density profile}
+To model the density profiles of small-scale \gls*{dm} halos we adopt the smoothly truncated universal 3D mass density profile from Ref.~\cite{Baltz:2007vq}:
+\begin{equation}
+    \rho_{\mathrm{tNFW}}(r)= \cfrac{\rho_s}{r/r_s (1+r/r_s)^2}  \cfrac{1}{1+(r/r_t)^2}.
+\end{equation}
+Here $r$ is the three-dimensional distance from the center of the halo, $\rho_s$ and $r_s$ are respectively the scale density and scale radius that specify a \gls*{nfw} profile \cite{Navarro:1996gj}, and $r_t\equiv\tau r_s$ is the tidal truncation radius that depends on the history of the subhalo. Typical values of the truncation scale $\tau$ range from $4-10$ for spherically symmetric lenses \cite{Gilman:2019nap, Cyr-Racine:2019aa}; we fix $\tau=6$ for simplicity. 
+Compared to the standard \gls*{nfw} form, which has an infinite total mass, the truncated \gls*{nfw} contains an additional truncation term that makes the profile decay as $r^{-5}$ for large radii, resulting in a finite total mass given by:
+\begin{equation}
+    m_\tau=4\pi \rho_s r_s^3 \frac{\tau^2}{(\tau^2+1)^2}[(\tau^2-1)\ln\tau+\tau\pi-(\tau^2 +1)].
+\end{equation}
+With a fixed truncation scale, the truncated \gls*{nfw} profile is fully determined by the same parameters that determine the \gls*{nfw} profile: the virial mass $m_\mathrm{200, sub}$\footnote{We parameterize subhalos by what would be their mass up to the virial radius $r_{200}$ using the untruncated profile, with the same central density $\rho_s$ and scale radius $r_s$ as the truncated one. This is defined as the mass of the halo enclosed in a sphere where the untruncated halo's average density is 200 times the critical density.} and the concentration $c=r_{200}/r_s$ of the halo. The latter measures how concentrated the mass of a halo is and fixes the density normalization; in principle, it varies from one subhalo to the next and shows dependencies on mass and redshift of the main halo. Here, instead of adopting a concentration-mass relation, we fix $c_{200}=15$ , which is roughly the average value for perturbers in the mass range $10^7-10^{10}\si{\solmass}$ \cite[Figure 7]{Richings:2020auv}. We anticipate that accounting for scatter in the mass-concentration relation might actually improve our ability to measure subhalos’ parameters as higher concentrations lead to substantially stronger lensing signals \cite{Amorisco:2021iim}.
+The equations for calculating the displacement field of a truncated \gls*{nfw} halo, given its mass and position, are fully elaborated in Appendix A of Ref.~\cite{Baltz:2007vq}.
+
+To generate perturber populations, we must choose values for their density normalizations and scale radii. Since simulation studies typically measure the halo mass $m_\mathrm{200, sub}$ and the concentration $c$, it is more convenient to sample populations from distributions over these parameters. These variables can then be mapped to the parametrization above via
+% The mass in this mapping actually corresponds to $m_{200}$ for an \emph{untruncated} NFW halo!
+\begin{align}
+    r_s &= \frac{1}{c} \left[ \frac{3 m_\mathrm{200, sub}}{4 \pi \, 200 \rho_\mathrm{cr}(z_\mathrm{lens})} \right]^{1/3} \, ,\\
+    \rho_s &= \rho_\mathrm{cr}(z_\mathrm{lens}) \, \frac{1}{3} \frac{c^3}{\log(1+c) - c / (1 + c)} \, . 
+\end{align}
+For simplicity, we model \gls*{los} halos using exactly the same profile even though they typically have not undergone tidal stripping. 
+
+The parameters of an individual subhalo which are not fixed are thus $\psubb \equiv (x_\mathrm{sub}, y_\mathrm{sub}, m_\mathrm{200, sub})$, where the second and third components are the projected position of the subhalo. In the case of \gls*{los} halos, the parameter set also includes the redshift $z_\mathrm{los}$. In the following sections, we will use arrows to denote vectors, \eg~$\vec{m}_\mathrm{200, sub}$ is an ordered set of masses, one for each simulated subhalo, and bold letters with an arrow to indicate arrays of vectors, \eg~ $\psub \equiv (\bm x_\mathrm{sub}, \bm y_\mathrm{sub}, \bm m_\mathrm{200, sub})$ is an ordered set of mass and positions in the lens plane, one for each simulated subhalo, and equivalently for \gls*{los} halos $\plos \equiv (\bm x_\mathrm{los}, \bm y_\mathrm{{los}}, \bm z_\mathrm{{los}}, \bm m_\mathrm{200, {los}})$. We collectively define the parameters of the full population of perturbers, subhalos and \gls*{los} halos, as $\pp$. In the next two subsections, we describe how we sample these parameters.
+
+\subsubsection{Generating subhalos} \label{subsubsec:sl-model-sub}
+
+We sample subhalo masses from the \gls*{cdm} mass function of Ref.~\cite{Giocoli:2009ie}:
+\begin{equation} \label{eq:shmf}
+    \frac{1}{m_\mathrm{200}}\frac{\dd n_\mathrm{sub}( m_\mathrm{200}, z)}{\dd\log m_\mathrm{200}} = A_M (1+z)^{1/2}m_{200}^{\alpha} \exp\left[-\beta\left(\frac{m_\mathrm{200}}{M}\right)^3 \right],
+\end{equation}
+where $M$ \footnote{
+    The total mass of the lens galaxy is described by the Einstein radius of the system, a very well-constrained parameter in lensing inference analyses. For the purpose of describing subhalos, we need to be able to map the measured properties of the lens (the Einstein radius $\theta_\mathrm{E}$) onto the properties of the host halo (the mass $M$). For simplicity, we compute the mass of the host halo transforming the Einstein radius distance measure into a mass measure. We would like to point out a similar approach from \cite{Brehmer:2019jyt}, where they relate the central velocity dispersion of a singular isothermal ellipsoid lens mass distribution profile to the virial mass of the host halo.
+}  is the mass of the main lensing halo and $m_\mathrm{200}$ the subhalo mass. The free parameters in this function were fit to hydrodynamical cosmological simulations that included baryons in Ref.~\cite{Despali:2016meh}. In particular, we use the fits to EAGLE, which give $\alpha = 0.85$ (given in the text) and $(A_M, \beta) = (2.4\times10^{-4}\, \si{\solmass}^{\alpha - 1}, 300)$ (extracted from their figures). The expected number of subhalos in a given mass interval for the lens halo system can be computed by integrating the mass function over that interval.
+
+The spatial distribution of subhalos has been shown to follow an Einasto profile \cite{Springel:2008cc}. However, since the virial radius of a typical main lens halo is much larger than its Einstein radius, and hence, than the image plane, we approximate the distribution to be uniform in the lensing image area. Still, we derive the total number of expected subhalos within the image,  $\bar{n}_\mathrm{sub}$,  via the Einasto fit of Ref.~\cite{Despali:2016meh}. We find that on average $\bar{n}_\mathrm{sub}=4$ subhalos fall within the lensing image area in our adopted lensing configuration and mass range. %With the lens redshift we have chosen, over a $\SI{5}{\arcsecond} \times \SI{5}{\arcsecond}$ image and integrating over the mass range \SIrange{e7}{e8}{\solmass}, we find $\bar{n}_\mathrm{sub} = 3.1$. 
+Thereafter we generate the subhalo population by sampling the number of subhalos from $\operatorname{Poisson}(\bar{n}_\mathrm{sub})$, drawing their masses from the subhalo mass function in Equation~\eqref{eq:shmf} and sampling their projected positions uniformly over the lens plane. Since the vast majority of subhalos fall outside the lens plane, we expect their lensing effect to be mostly degenerate with external shear, and thus do not simulate them. In the left panel of Figure~\ref{fig:sl-substructure} we show the convergence map for one realization of our subhalo population.
+
+\subsubsection{Generating line-of-sight halos}
+
+As described in Ref.~\cite{CaganSengul:2020nat}, we first compute the average number of \gls*{los} halos in the double-pyramid geometry connecting the observer, lens-plane and source. For each simulation we sample the number of \gls*{los} halos from $\operatorname{Poisson}(\bar{n}_\mathrm{los})$. We then sample their redshifts and projected positions uniformly over the double-pyramid region and draw their masses from the mass function in Ref.~\cite{Tinker:2008ff}, assuming an overdensity with respect to the critical density of the universe at the epoch of analysis of $\Delta=200$. 
+
+More in details, we infer the number of detectable \gls*{los} halos by integrating their mass function in the mass range adopted for the analysis and within the double-cone volume
+\begin{equation}
+    \bar{n}_{\mathrm{los}}=\int_0^{z_\mathrm{src}}\int_{m_\mathrm{200,min}}^{m_\mathrm{200, max}} n_\mathrm{los}(m_\mathrm{200}, z)\dd{m_\mathrm{200}} \frac{\dd{V}}{\dd{z}}\dd z.
+\end{equation}
+On average we get $\bar{n}_{\mathrm{los}}=260$ \gls*{los} halos projected in our lens plane. Similarly to what we do with the subhalo population, when generating simulated images, we draw the number of LOS halos from $\operatorname{Poisson}(\bar{n}_\mathrm{los})$, we then sample their masses and redshift from the halo mass function and sample their projected positions uniformly over the lensing image area. As with subhalos, we ignore any \gls*{los} halos lying outside the double pyramid volume. In right panel of Figure~\ref{fig:sl-substructure} we show the distribution of \gls*{los} halos in redshift for our lens and source redshifts configuration.
+
+To avoid expensive iterative ray-tracing through the lens planes of each \gls*{los} halo, we project them as effective subhalos into the lens plane, using the relations derived in Ref.~\cite{CaganSengul:2020nat} to rescale their scale radii and masses. Following Ref.~\cite{CaganSengul:2020nat}, \gls*{los} halos at comoving distance $\chi$ can be treated as subhalos on the main-lens plane with an effective projected mass density given by:
+\begin{equation}
+    \Sigma_{\chi, \mathrm{eff}}(D_L\vec{x};m_{200},r_s,\tau)= \Sigma(D_L\vec{x};m_{200,\mathrm{eff}},r_{s,\mathrm{eff}},\tau).
+\end{equation}
+The effective scale radius $r_{s,\mathrm{eff}}$ and mass $m_{200,\mathrm{eff}}$ are respectively
+\begin{equation}
+    r_{s,\mathrm{eff}}=\cfrac{D_L}{g(\chi)D_\chi}r_s,
+\end{equation}
+and
+\begin{equation}
+    m_{200,\mathrm{eff}}=f(\chi)\cfrac{\Sigma_{\mathrm{cr}, l}}{\Sigma_{\mathrm{cr}, \chi}}\left(\cfrac{D_l}{g(\chi)D_\chi}\right)^2m_{200}.
+\end{equation}
+The piecewise functions $f(\chi)$ and $g(\chi)$ are:
+\begin{equation}
+    f(\chi)= \begin{cases}
+            1-\beta_{\chi l} & \chi \leq \chi_L \\
+            1-\beta_{l\chi}  & \chi > \chi_L \\
+            \end{cases},
+\end{equation}
+and
+\begin{equation}
+    g(\chi)= \begin{cases}
+            1 & \chi \leq \chi_L \\
+            1-\beta_{l\chi}  & \chi > \chi_L \\
+            \end{cases},
+\end{equation}
+with $\beta_{ij}=\cfrac{D_{ij}D_s}{D_jD_{is}}$, where $D_i$ is the angular diameter distance from the observer to plane i, and $D_{ij}$ is the angular diameter distance from lens plane i to lens plane j, and $\chi_L$ is the comoving distance to the main-lens plane.
+We have also introduced the critical surface density at plane i
+\begin{equation}
+    \Sigma_{\mathrm{cr}, i}\equiv \cfrac{c^2D_s}{4\pi G D_i D_{is}}.
+\end{equation}
+
+It should be noted that effective convergence methods, like the one we adopt \cite{CaganSengul:2020nat}, do not fully capture the subtleties and degeneracies of multi-plane lens analysis, by disregarding how, when a \gls*{dm} small-scale halo is not in the lens plane, the lens mass model can absorb its lensing signal \cite{Fleury:2021tke, Amorisco:2021iim, He:2021rjd}. The omission of this effect may lead to an overestimate of the \gls*{los} halos contribution and needs to be addressed before this technique can be safely used for the analysis of real data.
+
+For \gls*{los} halos we adopt the same concentration and truncation scale values used for subhalos.
+
+
+\subsection{Modeling free-streaming effects in WDM}
+\label{subsec:free-streaming}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\linewidth]{GL-smoothing.png}
+    \caption{
+    \textit{Top}: Convergence maps for a population of \gls*{los} halos with masses sampled from the \gls*{cdm} \gls*{hmf} in the adopted mass range (Table~\ref{tab:pop-model}) and projected in the lens plane following the prescription from Ref.~\cite{CaganSengul:2020nat}.
+    In the second to fourth columns, we imitate the effect of \gls*{wdm} with different cutoff masses (as labeled in the titles) via our smoothing scheme. \textit{Bottom}: We show the probability with which \gls*{los} halos do not get smoothed, equal to the ratio between the \gls*{wdm} and the \gls*{cdm} \gls*{hmf} (see Equation~\eqref{eq:cutoff}). The smoothing is stochastic, so for each realization of the smoothing different halos are smoothed.
+    }
+    \label{fig:smoothing}
+\end{figure}
+
+In \gls*{wdm} models \gls*{dm} particles have non-negligible thermal velocities that allow them to free-stream out of density perturbations, effectively preventing small-scale structure formation. The free-streaming effects of \gls*{wdm} are well described in terms of the half-mode wavelength $\lambda_{\mathrm{hm}}$, which corresponds to the scale at which the \gls*{dm} transfer function falls to half the \gls*{cdm} transfer function. We can define the half-mode mass as the mass contained within a radius of the half-mode wavelength:
+\begin{equation}
+\mhm=\frac{4\pi\Omega_{\mathrm{M}}\rho_{\mathrm{crit}}}{3}\left(\frac{\lambda_{\mathrm{hm}}}{2}\right)^3,
+\end{equation}
+where $\Omega_{\mathrm{M}}$ is the matter density parameter and $\rho_{\mathrm{crit}}$ is the critical density of the universe.
+Following \cite{Schneider:2011yu}, the half-mode wavelength,
+\begin{equation}
+    \lambda_{\mathrm{hm}}=2\pi\alpha_{\mathrm{hm}}\left(2^{\nu/5}-1\right)^{-1/(2\nu)},
+\end{equation}    
+is the scale below which the initial density perturbations are completely erased, with $\nu= 1.12$ and, assuming that all \gls*{dm} is warm,
+\begin{equation}
+\alpha_{\mathrm{hm}}=0.049\left(\frac{m_\mathrm{WDM}}{\si{\keV}}\right)^{-1.11}\left(\frac{\Omega_\mathrm{DM}}{0.025}\right)^{0.11}\left(\frac{h}{0.7}\right)^{1.22}h^{-1}\si{\Mpc}.
+\end{equation}
+
+We then have a one-to-one mapping between the mass of the \gls*{wdm} particle and the half-mode mass.
+For strong lensing, the half-mode mass can be thought of as an effective cutoff mass below which the \gls*{dm} mass function is strongly suppressed. To model this suppression in the \gls*{wdm} mass function we adopt for both subhalos and \gls*{los} halos the functional form from Ref.~\cite{Lovell:2020bcy}:
+\begin{equation}\label{eq:cutoff}
+    \frac{n_{\mathrm{WDM}}}{n_{\mathrm{CDM}}}=\left(1+\left(\alpha\frac{\mhm}{m_{200}}\right)^\beta\right)^\gamma,
+\end{equation}
+with best fit parameters $\alpha=4.2$, $\beta=2.5$, and $\gamma=0.2$ for subhalos, $\alpha=2.3$, $\beta=0.8$, and $\gamma=1$ for central halos.
+
+\subsubsection{Smoothing substructures}
+\label{subsubsec:smoothing}
+
+The observational signature of \gls*{wdm} is, thus, the absence of small-scale structures. However, in the current parameterization, this is accompanied by the removal of the corresponding mass enclosed in them, whereas in reality the mass will still be present but will be diffused throughout the smooth main halo. This effect is manifested in a correlation between the half-mode mass and the main-halo Einstein radius: suppressing more substructure leads to an increase in the inferred Einstein radius since the total mass of the system (within the image) is tightly constrained by the size of the observed ring (or arcs).
+
+We introduce a prescription for dealing with this degeneracy, which well captures the physical reality of structure suppression due to free streaming. 
+Halos that should be suppressed are not present because the \gls*{dm} particles that should make them up are freely streaming, and their mass is therefore more diluted throughout the main halo.
+Therefore, rather than removing or adding substructures as a response to a changing cutoff, we still sample substructures from the \gls*{cdm} mass function, but we smooth the displacement field generated by halos that should be suppressed based on the aforementioned prescription by \cite{Lovell:2020bcy} to hide their lensing signature. In other words, each sampled small-scale halo has a probability equal to the ratio between the \gls*{wdm} and the \gls*{cdm} \gls*{hmf} (Equation~\eqref{eq:cutoff}) of not being smoothed. 
+
+We then effect the smoothing by convolving the deflection field of each individual sub-/\gls*{los} halo with a radially-symmetric filter
+\begin{equation}
+f \propto 1 - \exp\left(-\left(\frac{r}{r_{\mathrm{smooth}}}\right)^{n_{\mathrm{smooth}}}\right).
+\end{equation}
+This filtering preserves the far-field lensing signature of the halo, which is only determined by its total mass.
+By default, we choose the smoothing scale to be equal to the halo virial radius: $r_\mathrm{smooth}=r_{200}$, and the smoothing exponent $n_\mathrm{smooth}=2$.
+
+In the top row of Figure~\ref{fig:smoothing} we visualize the convergence maps in the lens plane for the same realization of \gls*{los} halos drawn from \gls*{cdm} distributions (panel 1), and with different cutoff masses implemented with our smoothing scheme (panels 2-4). In the bottom row, we show how we decide to smooth the lensing signature of certain halos based on the ratio between the \gls*{wdm} and the \gls*{cdm} \gls*{hmf} (Equation~\eqref{eq:cutoff}). 
+
+
+\subsection{Instrumental effects}
+
+We generate mock data with comparable quality to \gls*{hst} observations. All images are $\SI{5}{\arcsecond} \times \SI{5}{\arcsecond}$ with $\SI{0.05}{\arcsecond}$ resolution ($100 \times 100$ pixels). In our simulations, we do not include a \gls*{psf} for simplicity, but this component cannot be disregarded in real data analysis. To account for the fact that each pixel in the image corresponds to a finite collecting region in the sky, we generate our images at a resolution eight times higher than the target resolution and downsample. In experiments we found that neglecting this effect can have a significant impact on inference results. Lastly, we add Gaussian and uncorrelated pixel noise to our observations such that the brightest pixels are approximately 30 times the noise level (after downsampling), representative of \gls*{hst} data.
+
+
+
+
+\section{Methodology} \label{sec:sl-analysis}
+
+Constraining the fundamental properties of \gls*{dm} by characterizing the population of \gls*{dm} halos in a strong lensing image is an extremely difficult problem since the signal we are interested in has a sub-percent level influence on images dominated by statistical noise. The problem is further complicated by the large differences between images of different lensing systems.
+
+Our ultimate goal is to compute the marginal posterior $p(\mhm|\data)$ for a single parameter of interest $\mhm$, the half mode mass, given an observation $\data$, for which we have the generative model
+\begin{equation}
+\label{eq:model}
+\begin{split}
+    p(\data, &\psrc, \plens, \pp, \mhm) \\
+    &= p(\data|\psrc, \plens, \pp, \mhm) p(\psrc)p(\pp|\plens, \mhm) p(\plens) p(\mhm)\; ,
+\end{split}
+\end{equation}
+The first factor on the right-hand side is the simulator, while the other factors denote the priors on the various source, lens, and \gls*{dm} substructures parameters as listed in Table~\ref{tab:pop-model}. 
+
+Therefore, in order to derive $p(\mhm|\data)$ we need to marginalize over all the nuisance parameters $\interest\equiv\{\plens, \psrc, \pp\}$:
+\begin{equation}\label{eq:post}
+     p(\mhm|\data) = 
+     \frac{p(\data|\mhm)}{p(\data)} p(\mhm) =
+     \frac{\int \dd{\nuisance} p(\nuisance) p(\data|\mhm, \nuisance)}{p(\data)} p(\mhm).
+\end{equation}
+This is a very high-dimensional and multi-modal integral, even for simple analytical lens and source models, due to the large population of interchangeable substructures. Therefore, it is intractable, which renders likelihood-based inference infeasible in this case.
+
+Instead, we approximate $p(\mhm|\data)$ using \gls*{sbi} with the \gls*{tmnre} algorithm, presented in Section~\ref{sec:tmnre}.
+
+
+Formally, inferring the marginal posterior for the substructure population parameter of interest would require marginalizing over all the source, lens, and substructure realizations compatible with all possible strong lensing images. However, sampling lens and source parameters from their priors would require a very large amount of training data and a more complex network architecture when using neural ratio estimation. This has been attempted only in Ref.~\cite{Brehmer:2019jyt} to infer the slope and normalization of the \gls*{hmf}. In order to reduce the complexity of the problem and fully exploit available information in the data with limited computational resources, we propose to target one image at a time, focusing simulations and the network training on a specific observation of interest. Thanks to \gls*{tmnre}, we implement this with a truncation scheme.
+
+\gls*{tmnre} generates a sequence of likelihood-to-evidence ratio estimators on both nuisance and parameters of interest for a specific observation $\data$. In multiple inference rounds, the proposal distribution for nuisance parameters is updated and constrained, based on these ratio estimators, in order for the training data to match each round more closely the observation of interest $\data$ (this can be visually appreciated in Figure~\ref{fig:targeted_data}, which will be discussed in more details in Section~\ref{subsec:constrain}). 
+
+The procedure for the truncation scheme is the following. In the first inference round, we generate training data sampling the nuisance parameters from the initial prior $p(\nuisance)$. Then, in each round, we constrain the proposal distribution $p_\Gamma(\nuisance)$ for the parameters we want to marginalize over to a region $\Gamma$ where the nuisance parameters are more likely to have generated $\data$ based on the ratio estimator trained in that round. In particular, we estimate the new region $\Gamma$ by very conservatively truncating the previous proposal distribution $p_\Gamma(\nuisance)$ in the region where the ratio estimator exceeds a predetermined threshold. We set the threshold hyperparameter to $\epsilon = 10^{-5}$, which, in case of a Gaussian posterior, corresponds to truncating at $\sim 4.78\ \sigma$ \cite{Miller:2022shs}. We obtain the final proposal distribution for our nuisance parameters when the region $\Gamma$ does not change significantly anymore between rounds. 
+
+
+\medskip
+In this work we target with \gls*{tmnre} a restricted set of the nuisance parameters $\nuisance$: namely, those of the analytic smooth lens and source models, $\plens$ and $\psrc$, while leaving halo parameters, $\pp$ unconstrained.
+
+\medskip
+To summarize, thanks to \gls*{tmnre}, the overall analysis strategy splits into the following steps:
+\begin{enumerate}[leftmargin=1cm]
+    \item[{1.}] Train an inference network to constrain the source and lens parameters, $\psrc$ and $\plens$, within ranges consistent with the observation. We then generate targeted training data based on this constrained model.
+    \item[{2.}] Train an inference network to learn the marginal likelihood-to-evidence ratio for our parameter of interest, the half mode mass $\mhm$, on the targeted training data.
+\end{enumerate}
+
+Similarly to the reasoning behind the \gls*{abc} rejection algorithm, which discards sampled parameters values if the generated data is too different from the observed data, we justify this approach by noting that parameters that do not produce observations similar to $\data$ will not contribute to the integral in Equation~\eqref{eq:post}. Restricting the input parameters in this way immensely reduces the variability of simulated data, which allows us to use simpler network architectures and fewer training examples in the next step. As a result, the inference is now \emph{targeted} to the specific observation at hand rather than amortized over all the possible lens/source combinations from the full prior. We would like to point out that the inference is still locally amortized in the constrained proposal distribution region, and this enables empirical test of the inference result (see Section~\ref{subsec:test}).
+
+
+
+\section{Experiment} 
+\label{sec:sl-results}
+
+%A population of low-mass halos can collectively cause perturbations to images that can be detected statistically in order to constrain the \gls*{hmf}. 
+%In reality, constraining collective substructure properties from gravitational lensing images is an extremely difficult problem. 
+%From measuring the distributions of perturbers' masses and other parameters, it is possible to infer population-level properties like the (sub)halo mass function parameters, which are dictated by the fundamental properties of dark matter.
+
+In this section, we show our results for hierarchical population parameters inference. First, we describe the simulated data in Section~\ref{subsec:pop-data} and the inference network architecture in Section~\ref{subsec:pop-nn}. We then show how we constrain the lens and source parameters in Section~\ref{subsec:constrain}. Next, we show our results for the \gls*{hmf} cutoff mass and describe how we can combine the information from different strong lensing images in Section~\ref{subsec:dm}. In the same section, we show our results on the \gls*{dm} mass inference. Finally, we directly assess the statistical behavior of the trained neural networks in Section~\ref{subsec:test}.
+
+\subsection{Mock data generation} 
+\label{subsec:pop-data}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\linewidth]{GL-mock.png}
+    \caption{We present a gallery of twenty mock strong-lensing images we use as target observations. These mock observations have been generated with arbitrary lens and source parameters drawn from the initial prior in Table~\ref{tab:pop-model}. Their peak \gls*{snr} is $\num{\sim 30}$, representative of \gls*{hst} data. We analyze these images by first constraining their lens and source parameters proposal distribution in Section~\ref{subsec:constrain}. Then, we combine them in order to infer the cutoff mass scale in Section~\ref{subsec:dm}. For the first one (upper left corner, framed in orange) of these images we show our results of the first part of the pipeline (Section~\ref{subsec:constrain}) in Figure~\ref{fig:bounds}, Figure~\ref{fig:targeted_data}, and Figure~\ref{fig:lens_source_post}.
+}
+\label{fig:mock}
+\end{figure}
+
+For this inference task we use our lensing simulator at its full capacity, by including lens, source, substructures and different \gls*{dm} models that depend on the half-mode-mass \mhm:
+\begin{equation}
+    p(\data\mid\psrc, \plens,\pp, \mhm)
+    = \mathcal{N}(\data\mid\mathrm{obs}(\psrc, \plens, \pp, \mhm), \sigma^2).
+\end{equation}
+
+In Figure~\ref{fig:mock} we show a gallery of twenty mock strong-lensing images we use as target observations. These mock observations have been generated with arbitrary lens and source parameters drawn from the initial prior in Table~\ref{tab:pop-model}. Their peak \gls*{snr} is $\num{\sim 30}$, representative of \gls*{hst} data.
+
+
+\subsection{Neural network}
+\label{subsec:pop-nn}
+
+For all tasks we use the same general ratio estimator architecture, as seen in Section~\ref{subsec:tmnre-nn}. It consists of an initial compression network $C_\Phi(\data)$ that maps the $100 \times 100$ pixel images into a feature vector. This feature vector is concatenated to the parameters we want to infer (\eg~to $\psrc$ and $\plens$ for tasks where they are constrained, and $\mhm$). The vector is then passed to a binary classification network $d_\Phi(\data, \interest)$ which outputs an estimate of the 1D marginal likelihood-to-evidence ratios for the parameter of interest (with separate \gls*{mlp}s used to estimate the 1D ratios for $\psrc$ and $\plens$). For the embedding network, in both steps of the pipeline, we adopt a simple \gls*{cnn}. In Figure~\ref{fig:cnn} we show the \gls*{cnn} architecture used to constrain lens and source parameters. The one used to estimate the cutoff mass has a similar structure.
+
+While we did not perform a full hyperparameter exploration, we found the batchnorm layers to be crucial for stable training of the \gls*{cnn} used for the macromodel ratio estimator.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\linewidth]{GL-cnn.pdf}
+	\caption{Illustration of the embedding \gls*{cnn} architecture used in the first part of the pipeline to constrain lens and source parameters. The observation $\data$ gets compressed into features: estimates of the best possible data summary statistic, by the \gls*{cnn}. In describing the \gls*{cnn} layers we follow \texttt{PyTorch} \cite{pytorch} convention. To create the illustration we have used \cite{PlotNeuralNet}.}
+\label{fig:cnn}
+\end{figure}
+
+
+\subsection{Constraining lens and source parameters}
+\label{subsec:constrain}
+
+\begin{figure*}
+	\centering
+	\includegraphics[width=\linewidth]{GL-bounds.png}
+	\caption{Constrained proposal distribution. Visualization of the sequential truncation of the lens and source proposal distributions over the six rounds of training. The particular target is the first mock image (framed in orange in Figure~\ref{fig:mock}), whose parameters are depicted as black dashed horizontal lines.}
+\label{fig:bounds}
+\end{figure*}
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\linewidth]{GL-targeted_data.png}
+	\caption{Training data targeting the first mock observation (framed in orange in Figure~\ref{fig:mock}). In each row, we show five examples of training data for the first five rounds. In the first round, we sample our data from the initial prior shown in Table~\ref{tab:pop-model}. For the following rounds, the lens and source parameters are sampled from the constrained proposal distributions, obtained by evaluating the network trained with the previous round dataset on our target observation (see Section~\ref{subsec:constrain}). It is evident that with each round the training data more closely resembles the target image $\data_0$.}
+\label{fig:targeted_data}
+\end{figure}
+
+\begin{figure*}
+	\centering
+	\includegraphics[width=\linewidth]{GL-lens_source_post.png}
+	\caption{Lens and source parameters posteriors. In solid blue we show the last round of constrained proposal distributions for the first (upper left corner, framed in orange) target image in Figure~\ref{fig:mock}. The dotted black lines correspond to the true lens and source parameters values with which we have generated the target image. In orange, we show the estimated posteriors for lens and source parameters in the last training round. Based on the predetermined threshold, the new bounding limits $\Gamma$ (dashed blue) do not change significantly from the previous constrained proposal distribution region, so it is not possible to constrain the proposal distribution more and we stop the truncation procedure.}
+\label{fig:lens_source_post}
+\end{figure*}
+
+We constrain lens and source parameters regions with \gls*{tmnre} (Section~\ref{sec:tmnre}) with multiple sampling and training rounds.
+
+In total, we perform six sampling and training rounds. In each round, we simulate $10^5$ observations, of which $90\%$ are used as the training dataset, and the remaining $10\%$ as the validation dataset. Evaluations of the network on the mock target image are used to truncate the training data proposal distribution after each round, so that the region for lens and source parameters is targeted. The first training round is performed on the dataset generated from the initial source and lens parameters priors, shown in Table~\ref{tab:pop-model}. In Figure~\ref{fig:bounds} we show the initial prior and the following constrained proposal distributions. It can be seen that after the first round just a few of the parameters proposal distributions get truncated, \eg~the Einstein radius. By having truncated these initial parameters, in the following rounds the other parameters can be better learned by the network and so constrained. In Figure~\ref{fig:targeted_data}, we show samples from the first five training datasets, which demonstrate that the constrained regions are indeed the ones that are likely to produce data similar to the targeted image $\data$. After the sixth round of training, it is not possible anymore to truncate the proposal distribution region based on the predetermined threshold, as seen in Figure~\ref{fig:lens_source_post}. The truncation scheme has then efficiently identified the constrained region for lens and source parameters consistent with the targeted observation. Using the last constrained dataset, it is then easier in the second step of the pipeline to train a marginal neural ratio estimator to perform the final inference on the cutoff mass.
+
+We would like to stress that these constrained proposal distributions correctly account for lens and source parameters uncertainties. In all our simulated data, the substructure parameters $\pp$ are randomly sampled from their prior, in order to account for the presence of substructure. This has the desirable outcome of approximately accounting for the average effect that an additional mass component has on the main lens parameters (\eg\ inferring an unbiased Einstein radius) and contributes to the source and lens uncertainties.
+
+\subsection{Dark matter inference}
+\label{subsec:dm}
+
+For the second step of the pipeline, we train an inference network to learn the cutoff mass on the last constrained dataset. 
+
+From initial tests, we have found that features from a single image are very hard to learn for the classifier, resulting in a very noisy ratio estimator.
+In order to reduce the estimator uncertainty, we then train the cutoff mass classifier on a dataset $X^N=\{\data_1, ..., \data_N\}$ of $N$ different observations. For each observation, first, we constrain its lens and source parameters as explained in Section~\ref{subsec:constrain}. Then, we train the cutoff classifier on the concatenation of the features coming from their embedding networks, effectively learning $r(\mhm; X^N)$. 
+Note that the images in one dataset are sampled with the same cutoff mass $\mhm$, but different lens, source, and substructures realizations. In fact, our final goal is to apply the full pipeline to real data, which will all have different source, lens, and substructures configurations, but will have encoded the same \gls*{dm} properties. 
+
+\begin{figure*}
+	\centering
+	\includegraphics[width=\linewidth]{GL-mhm_results.png}
+	\caption{\textit{Top:} Approximate posteriors for the half-mode mass derived from 10 different sets of 20 images. The dotted black line represents the true value of the half mode mass with which we have generated the images ($10^7, 10^8, 	10^9,  10^{10} \ \si{\solmass}$). \textit{Middle:} We show the approximate posterior resulting from the combination of the $M=10$ different posteriors shown in the first column, as explained in the text (Section~\ref{subsec:dm}). \textit{Bottom:} Subhalo mass function constraints derived from the cutoff mass posterior shown in the second column. The black solid line shows the \gls*{cdm} subhalo mass function according to Equation~\eqref{eq:shmf}, whereas the black dashed one shows the \gls*{wdm} subhalo mass function according to Equation~\eqref{eq:cutoff}, given the true cutoff mass shown in the label. The blue dashed line shows the mean of the \gls*{wdm} subhalo mass function obtained by sampling $1000$ samples from the cutoff mass posterior shown in the second panel and using this value in Equation~\eqref{eq:cutoff}. We also show the central \num{68} and \num{95} percentiles as shaded bands. These plots show how uncertain the subhalo mass function is under the assumption that it has the functional form in Equation~\eqref{eq:cutoff} with parameters from Ref.~\cite{Lovell:2020bcy}.}
+\label{fig:mhm_results}
+\end{figure*}
+
+In the first row of Figure~\ref{fig:mhm_results} we show the results from the inference network on ten test sets of lenses generated with a $\mhm$ value of $10^7, 10^8, 10^9$ and, $10^{10} \ \si{\solmass}$. Each curve is the posterior obtained for a set of $N=20$ lenses. Each of the mock observations has lens and source parameters sampled from their own final constrained proposal distribution, and different substructure population.  
+
+Now that we have reduced the estimator noise, it is straightforward to perform inference on a group of sets of images by combining their ratios. Given a dataset $X^N=\{\data_1, ..., \data_N\}$ of images, the combined ratio for multiple $M$ datasets is simply given by $r(\mhm;X^N_M,) \propto \prod_{i=1}^M r(\mhm; X^N_i)$, where the proportionality is a ratio of evidences, independent of the parameter value, so it only accounts for a proper normalisation Ref.~\cite{Brehmer:2019jyt, Hermans:2019ioj}.
+In the second row of Figure~\ref{fig:mhm_results} we show the results for the combination of the $M=10$ different posteriors shown in the first column.
+
+In the third row we show a combined posterior for the \gls*{wdm} mass function from 200 images ($M=10$ sets of $N=20$ images). These plots show the uncertainty in the subhalo mass function under the assumption that it has the functional form in Equation~\eqref{eq:cutoff} with parameters from Ref.~\cite{Lovell:2020bcy}.
+
+These first results show that our method is sensitive to the low-mass end of the \gls*{hmf}, and that we have unbiased results from combining just 10 sets of 20 observations, given that in the second panel of Figure~\ref{fig:mhm_results} the true input value for the half-mode mass $\mhm$ is consistently contained within the estimated posterior. In Section~\ref{subsec:test} we will show a more sophisticated method to assess the statistical behavior of
+our inference results.
+
+\begin{figure*}
+	\centering
+	\includegraphics[width=\linewidth]{GL-wdm_results.png}
+	\caption{\textit{Top:} We show five examples of combined posterior of $M=10$ sets of $N=20$ observations in terms of the cutoff mass (as the second row in Figure~\ref{fig:mhm_results}). The dotted black line represents the true input value of the half mode mass with which we have generated the analyzed mock observations ($10^7, 10^8, 10^9,  10^{10} \ \si{\solmass}$). \textit{Middle:} Same results as shown in the first column but for the \gls*{wdm} mass. The dotted black line represents the true value of the WDM mass with which we have generated the analyzed mock observations, given the mapping between \gls*{dm} cutoff and \gls*{dm} mass in Section~\ref{subsec:free-streaming}. The WDM mass posteriors assume a flat prior on the cutoff mass. \textit{Bottom:} Same results as shown in the first column but for the \gls*{wdm} mass and assuming a flat prior on the latter. In the first plot of the row, we show for the five examples the expected 95\% credible lower limit on the WDM mass for the highest value of our prior distribution.}
+\label{fig:wdm_results}
+\end{figure*}
+
+Furthermore, we can translate the constraints we obtain on the cutoff mass to constraints on the WDM mass given the mapping between those two quantities defined in Section~\ref{subsec:free-streaming}. In Figure~\ref{fig:wdm_results} we show  our results for the \gls*{wdm} mass. Each column corresponds to a different cutoff mass input value, so a different WDM mass. In the first row, we plot five examples of the combined posterior density for $\log_{10}\mhm$ of $M=10$ sets of $N=20$ observations. In the second row, we show the corresponding color-coded five examples for $m_{\mathrm{WDM}}$. In this case, we just transform the posterior from the first row using the parameterization shown in Section~\ref{subsec:free-streaming}, so we assume a flat prior on $\log_{10}\mhm$. Finally, in the last row, we show the WDM mass posterior densities assuming a flat prior on the latter. The posteriors in the second and third row are not actually the same because a flat prior $\log_{10}\mhm$ is different from a flat prior on $m_{\mathrm{WDM}}$.
+
+\subsection{Credible interval testing}
+\label{subsec:test}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.5\linewidth]{GL-coverage.png}
+    \caption{Empirical versus nominal expected coverage probabilities for the cutoff mass inference network. In case the line lies above (below) the black dashed diagonal line, the credible intervals are conservative (overconfident) and contain the true value with a frequency higher (lower) than nominally expected. We show the empirical (nominal) probabilities as horizontal (vertical) text.
+}
+\label{fig:coverage}
+\end{figure}
+
+We would like to directly test and validate the statistical behavior of our inference results by determining the expected coverage of the ratio estimator produced by the network, as described in Section~\ref{subsec:tmnre-test}. The goal is to compare the nominal and empirical expected coverage probabilities of estimated Bayesian credible intervals, which should coincide for a well-calibrated estimator. For the statistical formalism and definition of credible region and expected coverage probability, we refer the reader to Ref.~\cite{Hermans:2021rqv}. In brief, an ideal estimator has matching empirical and nominal expected coverage, a conservative one predicts lower credibility than empirically obtained, and an overconfident one has higher nominal than empirical credibility. In plots like Figure~\ref{fig:coverage}, the line for an ideal ratio estimator should perfectly align with the diagonal, whereas for a conservative (overconfident) estimator, it will lie above (below) the diagonal.
+In combination with visually checking the posteriors, this test supports the accuracy of the posterior estimator and is also particularly useful when one does not have access to the ground truth against which to compare the results.
+In Figure~\ref{fig:coverage} we show the empirical versus nominal expected coverage probabilities for the cutoff mass inference network. We can see that the inference network for the half-mode mass has converged with good expected coverage. 
+
+
+\section{Discussion}\label{sec:sl-discussion}
+
+In this section, we discuss the improvements to the model and inference question which need to be addressed before we can safely apply our pipeline to the analysis of real data. 
+
+First, we have neglected effects such as inadequate \emph{lens light} subtraction and assumed the lens light to be known (this will be accounted for in Chapter~\ref{cha:anre}). Regarding the \emph{noise} model, we did not account for correlated pixel noise due to instrumental effects including the telescope's \gls*{psf}, multi-band observations, drizzling  (\eg~see Ref.~\cite{Wagner-Carena:2022mrn}), and even complex noise with an unknown likelihood function.
+
+In this work, we have employed an analytic parameterization (the Sérsic profile) as a lensed source light distribution model, which is adequate to analyze low-resolution images. However, to accurately model higher-fidelity lensing observations, such as those from on-going (\eg~HST) and future (\eg~JWST, ELT, SKA) telescopes, more \emph{complex source models} need to be employed. Existing models, in order of complexity, are regularized pixellation of the source plane (see, \eg, \cite{Suyu:2006fd, Karchev:2021fro, Vegetti:2008eg}), source modeling through basis functions (\eg~shapelets \cite{Birrer:2018xgm} or wavelets \cite{Galan:2020mnn}) attached to the source plane, and deep learning approaches (see, \eg, Refs.~\cite{Adam:2022esz, Morningstar:2019szx}).
+The ability to accurately and precisely reconstruct the complex morphology of strong-lensing sources is of the utmost importance, as to disentangle the source surface brightness inhomogeneities from the percent-level fluctuations introduced by substructures in the lens. We anticipate that using sources with more complex morphologies will result in higher sensitivity to the DM cutoff mass, provided that it is possible to model these sources. In fact, the residuals between the image of an extended source lensed by the total lens potential (accounting for substructures), and that of the same source lensed only by the main lens component are proportional to the gradient of that source evaluated in the image plane \cite[Equation 16]{Cyr-Racine:2019aa}. 
+
+Regarding \gls*{wdm} modeling, validation of our smoothing scheme (\autoref{subsubsec:smoothing}) is required to accurately account for \gls*{dm} free-streaming effects. Moreover, we should account for uncertainties due to the assumed halo density profile by considering different \gls*{dm} distributions around galaxies (see, \eg, Ref.~\cite{Salucci:2018aa} for a review). We note that, thanks to its flexibility, our pipeline can incorporate any arbitrary \gls*{dm} model, as long as it specifies the form of the \gls*{hmf} and the density profiles of individual substructures. 
+ 
+Finally, we would like to draw the reader's attention on the fact that in our modeling we assume that the halo mass of the lens is known exactly from its Einstein radius (see \autoref{subsubsec:sl-model-sub}). 
+This is a strong assumption that has as a consequence the separation of substructure parameters $\pp$ and lens parameter $\plens$ once we marginalize the posterior probability over the halo mass in Equation~\eqref{eq:model}.
+In particular, the second inference question we have addressed in this work in Section~\ref{sec:results-pop}, constraining the cutoff mass of the subhalo mass distribution, is then a simplified version of the real one, which is to simultaneously determine the halo mass and subhalo mass distribution of the lenses from real data (see, \eg, Ref.~\cite{Birrer:2017rpp}). 
+
+While this work used simple mock lenses, \gls*{tmnre} makes it possible to add realism and parameters to a simulator without significantly altering the inference procedure, or necessarily increasing the simulation budget \cite{Cole:2021gwr}. It should therefore be straightforward to incorporate these various complexities we ignored in this work without fundamentally modifying the inference pipeline. 
+
+%Throughout this study, we have made a number of simplifying assumptions for the, halo mass of the lens, source light profile, and substructure models. We have also neglected effects such as inadequate lens light subtraction, realistic \gls*{psf} modeling, and correlated pixel noise due to effects including the telescope's \gls*{psf}. Before this analysis pipeline can be safely extended to real observations, these assumptions need to be correctly addressed, as discussed in Section~\ref{sec:discussion}. 
+
+
+\section{Conclusions}\label{sec:sl-conclusions}
+
+Measuring the collective properties of \gls*{dm} halos on sub-galactic scales by means of their gravitational effect is an important probe of the fundamental nature of \gls*{dm}. One of such probes, strong gravitational lensing, has sparked much interest over the last few years. Moreover, the development of fast and accurate techniques to extract information from strong lensing images is well motivated by the wealth of new high-resolution strong lensing observations that will become available in the near future.
+
+In this work, we have presented the first step towards a new neural simulation based inference pipeline (Chapter~\ref{cha:sbi}) to analyze present and future strong gravitational lensing systems in order to constrain the cutoff in the \gls*{dm} \gls*{hmf}, and so the \gls*{dm} mass (Section~\ref{sec:sl-results}). To this end, we have used a recent machine learning development, \gls*{tmnre}, that makes it possible to \textit{target} the analysis to a specific observation rather than amortize over all possible variations in lensing systems, making inference more efficient and precise. Thanks to \gls*{tmnre}, we overcome the computational challenges of traditional \gls*{mcmc}, nested sampling and trans-dimensional \gls*{mcmc} methods, by directly learning the marginal posterior for the parameter of scientific-interest from the observation. Moreover, \gls*{tmnre} leverages neural networks to directly learn the best summary statistic possible from the full input data, without having to compress the observation into hand-crafted summary statistics, like for \gls*{abc} frameworks. The method is applicable to simulators with unknown likelihood functions and large or even variable numbers of input parameters. Lastly, the resulting inference networks can be poked and prodded to confirm they are statistically well-behaved.
+This work is then a step forward towards making the analysis of strong lensing images for \gls*{dm} science faster, more efficient, and more accurate. 
+
+\mbox{}
+
+Our key results can be summarized as follows:
+
+\noindent\textbf{\gls*{tmnre} enables direct marginal inference.} Thanks to marginalized inference, the \gls*{tmnre} based analysis is able to correctly propagate the lens and source parameters uncertainties, and  account for the presence of a population of substructures, when estimating the marginal posterior of interest.
+
+\noindent\textbf{\gls*{tmnre} enables direct targeted inference.} Thanks to our targeted approach, we are able to correctly estimate the lens and source parameters uncertainties, and use the final lens and source parameters truncated proposal distributions (see Section~\ref{subsec:constrain}) to generate a targeted training dataset in order to infer the \gls*{dm} cutoff. 
+
+\noindent\textbf{\gls*{tmnre} enables statistical checks.} Since the inference networks learned by \gls*{tmnre} are locally amortized over a range of potential observations, we were able to test their statistical consistency. Our checks confirm that \gls*{tmnre} on average produces posteriors with the correct width (see \eg~Figure~\ref{fig:coverage}). Such tests would be extremely expensive with likelihood-based inference since they would require rerunning the sampling machinery on numerous mock observations.
+  
+\noindent\textbf{\gls*{tmnre} enables hierarchical inference.} We demonstrated that our framework is able to statistically extract the \gls*{dm} cutoff mass signal from a population of small-scale dark matter halos in the $[10^7,\ 10^{10}]\ \si{\solmass}$ mass range, by performing hierarchical inference on up to 200 observations (Section~\ref{subsec:dm} and Figure~\ref{fig:mhm_results}). A cutoff mass posterior translates into a posterior on the \gls*{wdm} mass, given the mapping in Section~\ref{subsec:free-streaming}. What we find is an expected 95\% credible lower limits around 6.5 $\si{\keV}$ in the case of the scenario closest to \gls*{cdm} (see the bottom left panel in Figure~\ref{fig:wdm_results}), given the adopted prior and the various assumptions discussed in Section~\ref{sec:sl-discussion}. 
+
+%Measuring the properties of both individual \gls*{dm} halos and of a population of dark substructures on sub-galactic scales is an important probe of the fundamental nature of \gls*{dm}. However, extracting their parameters from observations is difficult for a myriad of reasons, including the fact that lenses contain multiple perturbers (sub-/\gls*{los} halos). In this work we demonstrated that \gls*{tmnre} enables analyses of individual perturbers' properties in scenarios where the application of likelihood-based methods is difficult or infeasible. The key strength of \gls*{tmnre} is its ability to directly learn marginal posterior functions for a set of scientifically-interesting parameters from simulated data. By truncating the range of parameters used to generate the simulations, \gls*{tmnre} enables precision inference of individual observations using a targeted set of training data. This enables the previously-intractable marginalization over large perturber populations. Furthermore, the method is applicable to simulators with unknown likelihood functions and large or even variable numbers of input parameters. The resulting inference networks can be poked and prodded to confirm they are statistically well-behaved.
+
+\mbox{}
+
+In this work, we have demonstrated that, in principle, the \gls*{dm} cutoff mass signal can be statistically extracted from a population of small-scale dark matter halos by a neural network using \gls*{tmnre}.
+A part from the possible framework improvements discussed in Section~\ref{sec:sl-discussion}, an interesting direction for further work is the use of \gls*{tmnre} for model comparison. While here our ratio estimators were trained to compute the likelihood-to-evidence ratio, as pointed out in Ref.~\cite{Hermans:2019ioj} it is possible to learn other ratios of densities. In particular ratio estimators can be used to learn the Bayes factor for assessing the strength of the evidence for different models. This could be used to determine whether an image contains a perturber or not, and to map the minimum-detectable perturber mass as a function of its position.
+
+Overall, we believe using \gls*{tmnre} to measure dark perturbers' population parameters as described in this work provides a promising path towards uncovering the identity of dark matter.
+
+
+
+
+%%%
+
+%\section*{Acknowledgements}
+%We thank Benjamin Kurt Miller and Elias Dubbeldam for helpful discussions. We thank the anonymous referee for a careful reading and helpful comments.
+%
+%This work is part of a project that has received funding from the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation program (Grant agreement No. 864035 -- UnDark).
+%
+%A.C. received funding from the Netherlands eScience Center (grant number ETEC.2019.018) and the Schmidt Futures Foundation.
+%C.C. acknowledges the support of the Dutch Research Council (NWO Veni 192.020).
+%
+%This work was carried out on the Lisa Compute Cluster at SURFsara. We acknowledge the use of the \texttt{python} \cite{python} modules, \texttt{matplotlib} \cite{Hunter:2007ouj}, \texttt{seaborn} \cite{Waskom:2021psk}, \texttt{numpy} \cite{Harris:2020xlr},  \texttt{scipy} \cite{Virtanen:2019joe}, \texttt{AstroPy} \cite{Astropy:2013muo}, \texttt{PyTorch} \cite{pytorch}, \texttt{Pyro} \cite{pyro}, \texttt{tqdm} \cite{tqdm}, and \texttt{jupyter} \cite{jupyter}.
+%
+%\section*{Data Availability}
+%The data underlying this article will be shared on reasonable request to the corresponding author.
+
+%%%%%%%%%%%%%%%%% APPENDICES %%%%%%%%%%%%%%%%%%%%%

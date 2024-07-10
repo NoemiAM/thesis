@@ -1,0 +1,72 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\input{../../symbols}
+\input{../../colors}
+
+
+\begin{document}
+
+\begin{tikzpicture}
+
+    \pgfmathsetmacro{\squareSize}{2.5}
+    \pgfmathsetmacro{\offset}{1} 
+
+    % Draw the first region with one square
+    \draw (0, 0) rectangle ++(\squareSize, \squareSize);
+    \draw[fill=blue!10,rotate around={45:(\squareSize/2, \squareSize/2)}] (\squareSize/2, \squareSize/2) ellipse (\squareSize/2/1.1 and \squareSize/2/2.2); 
+    \draw[fill=blue!40,rotate around={45:(\squareSize/2, \squareSize/2))}] (\squareSize/2, \squareSize/2) ellipse (\squareSize/2/2 and \squareSize/2/4);
+    \node[] at (0.9, 0.9){\color{red} $\times$ };
+    \node (lbi) at (\squareSize/2, \squareSize+0.5) {LBI};
+    \node at (\squareSize/2, -0.5) {$p(\interest\mid\data_0)$};
+    
+    % Draw the central region with two squares
+    \draw (\squareSize+\offset, 0) rectangle ++(\squareSize/2, \squareSize/2);
+    \draw[fill=blue!10,rotate around={45:(\squareSize+\offset+\squareSize/4, \squareSize/4)}] (\squareSize+\offset+\squareSize/4+0.1,\squareSize/4) ellipse (\squareSize/4/1.1 and \squareSize/4/2.2); 
+    \draw[fill=blue!40,rotate around={45:(\squareSize+\offset+\squareSize/4, \squareSize/4)}] (\squareSize+\offset+\squareSize/4+0.1,\squareSize/4) ellipse (\squareSize/4/2 and \squareSize/4/4);
+    \node[] at (\squareSize+\offset+0.4, 0.4){\color{red} $\times$ };     
+    \draw (\squareSize+\offset, \squareSize/2) rectangle  ++(\squareSize/2, \squareSize/2);
+    \draw[fill=blue!10,rotate around={30:(\squareSize+\offset+\squareSize/4, \squareSize/2+\squareSize/4)}] (\squareSize+\offset+\squareSize/4,\squareSize/2+\squareSize/4) ellipse (\squareSize/4/1.1 and \squareSize/4/2.2); 
+    \draw[fill=blue!40,rotate around={30:(\squareSize+\offset+\squareSize/4, \squareSize/2+\squareSize/4)}] (\squareSize+\offset+\squareSize/4,\squareSize/2+\squareSize/4) ellipse (\squareSize/4/2 and \squareSize/4/4);
+    \node[] at (\squareSize+\offset+0.7, \squareSize/2+0.5){\color{red} $\times$ };
+    \draw (\squareSize+\offset+\squareSize/2, 0) rectangle  ++(\squareSize/2, \squareSize/2);
+    \draw[fill=blue!10,rotate around={45:(\squareSize+\offset+\squareSize/4+\squareSize/2, \squareSize/4)}] (\squareSize+\squareSize/2+\offset+\squareSize/4,\squareSize/4+0.1) ellipse (\squareSize/4/1.1 and \squareSize/4/2.2); 
+    \draw[fill=blue!40,rotate around={45:(\squareSize+\offset+\squareSize/4+\squareSize/2, \squareSize/4)}] (\squareSize+\squareSize/2+\offset+\squareSize/4,\squareSize/4+0.1) ellipse (\squareSize/4/2 and \squareSize/4/4);
+    \node[] at (\squareSize+\offset+\squareSize/2+0.5, 0.5){\color{red} $\times$ };
+    \draw (\squareSize+\offset+\squareSize/2, \squareSize/2) rectangle  ++(\squareSize/2, \squareSize/2);
+    \draw[fill=blue!10,rotate around={-45:(\squareSize+\offset+\squareSize/4+\squareSize/2, \squareSize/4+\squareSize/2)}] (\squareSize+\squareSize/2+\offset+\squareSize/4,\squareSize/4+\squareSize/2) ellipse (\squareSize/4/1.1 and \squareSize/4/2.2); 
+    \draw[fill=blue!40,rotate around={-45:(\squareSize+\offset+\squareSize/4+\squareSize/2, \squareSize/4+\squareSize/2)}] (\squareSize+\squareSize/2+\offset+\squareSize/4,\squareSize/4+\squareSize/2) ellipse (\squareSize/4/2 and \squareSize/4/4);
+    \node[] at (\squareSize+\offset+\squareSize/2+0.4, \squareSize/2+0.6){\color{red} $\times$ };
+    \draw (2*\squareSize+\offset, 0) rectangle  ++(\squareSize/2, \squareSize/2);
+    \draw[fill=blue!10,rotate around={30:(2*\squareSize+\offset+\squareSize/4, \squareSize/4)}] (2*\squareSize+\offset+\squareSize/4-0.1,\squareSize/4) ellipse (\squareSize/4/1.1 and \squareSize/4/2.2); 
+    \draw[fill=blue!40,rotate around={30:(2*\squareSize+\offset+\squareSize/4, \squareSize/4)}] (2*\squareSize+\offset+\squareSize/4-0.1,\squareSize/4) ellipse (\squareSize/4/2 and \squareSize/4/4);
+    \node[] at (2*\squareSize+\offset+0.8, 0.6){\color{red} $\times$ };
+    \draw (2*\squareSize+\offset, \squareSize/2) rectangle  ++(\squareSize/2, \squareSize/2);
+    \draw[fill=blue!10,rotate around={45:(2*\squareSize+\offset+\squareSize/4, \squareSize/4+ \squareSize/2)}] (2*\squareSize+\offset+\squareSize/4,\squareSize/4+ \squareSize/2) ellipse (\squareSize/4/1.1 and \squareSize/4/2.2); 
+    \draw[fill=blue!40,rotate around={45:(2*\squareSize+\offset+\squareSize/4, \squareSize/4+ \squareSize/2)}] (2*\squareSize+\offset+\squareSize/4,\squareSize/4+ \squareSize/2) ellipse (\squareSize/4/2 and \squareSize/4/4);
+    \node[] at (2*\squareSize+\offset+0.6, \squareSize/2+0.7){\color{red} $\times$ };
+    \node (sbi) at (\squareSize+\offset+\squareSize*0.75, \squareSize+0.5) {SBI};
+    \node (all) at (\squareSize+\offset+\squareSize*0.75, -0.5) {$p(\interest\mid\data)\;\; \forall \data\sim p(\data)$};
+
+    % Draw the third region with one square
+    \node (test) at (3*\squareSize+2*\offset+1, \squareSize+0.5) {Expected coverage test};
+    \draw[->, line width=0.3mm, draw=black] (sbi.east) to (test.west);
+    \begin{axis}[
+    		width=0.33\linewidth, height=0.33\linewidth, at={(0.775*\linewidth, 0.007*\linewidth)},
+			xmax=5, xmin=0,
+			ymax=5, ymin=0,
+			xtick={0,1,2,3,4,5},
+		    ytick={0,1,2,3,4,5},
+    	]
+    	\addplot [black,samples at={0,5}] {x};
+    	\draw (axis cs:0,0)--(axis cs:2.5,2.5) node [anchor=south, rotate=45]{conservative};
+    	\draw (axis cs:0,0)--(axis cs:2.5,2.5) node [anchor=north, rotate=45]{overconfident};
+    \end{axis}
+    \node [label={[align=center]below:Nominal coverage\\ ${z}$}] (n) at (4.25*\squareSize,-0.3) {};
+    \node [rotate=90,label={[align=center, rotate=90]below:Empirical coverage\\ $\hat{z}$} ] (e) at (3*\squareSize+0.8, -0.35){};
+   
+    
+\end{tikzpicture}
+
+
+\end{document}

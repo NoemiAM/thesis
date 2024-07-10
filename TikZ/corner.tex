@@ -1,0 +1,47 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\input{../../symbols}
+\input{../../colors}
+
+
+\begin{document}
+
+   \begin{tikzpicture}
+    \def\gridsize{20}
+    \pgfmathsetmacro{\boxsize}{8/\gridsize}
+    \pgfmathsetmacro{\halfboxsize}{\boxsize / 2}
+
+    % Draw the grid
+    \foreach \i in {1,...,\gridsize} {
+        \foreach \j in {1,...,\i} { % Note: \j ranges from 1 to \i to avoid upper right corner
+            \begin{scope}[shift={(\j * \boxsize, -\i * \boxsize)}]
+                \draw[] (0, 0) rectangle (\boxsize, \boxsize);
+                
+                % Color the background of some boxes
+                \ifnum\i=1 \ifnum\j=1 \fill[yellow!30] (0, 0) rectangle (\boxsize, \boxsize);  \fi\fi
+                \ifnum\i=2 \ifnum\j=1 \fill[yellow!30] (0, 0) rectangle (\boxsize, \boxsize);  \fi\fi
+                \ifnum\i=2 \ifnum\j=2 \fill[yellow!30] (0, 0) rectangle (\boxsize, \boxsize);  \fi\fi
+                \ifnum\i=3 \ifnum\j=1 \fill[yellow!30] (0, 0) rectangle (\boxsize, \boxsize);  \fi\fi
+                \ifnum\i=3 \ifnum\j=2 \fill[yellow!30] (0, 0) rectangle (\boxsize, \boxsize);  \fi\fi
+                \ifnum\i=3 \ifnum\j=3 \fill[yellow!30] (0, 0) rectangle (\boxsize, \boxsize);  \fi\fi
+                \ifnum\i=10 \ifnum\j=10 \fill[yellow!30] (0, 0) rectangle (\boxsize, \boxsize);  \fi\fi
+                \ifnum\i=11 \ifnum\j=10 \fill[yellow!30] (0, 0) rectangle (\boxsize, \boxsize);  \fi\fi
+                \ifnum\i=11 \ifnum\j=11 \fill[yellow!30] (0, 0) rectangle (\boxsize, \boxsize);  \fi\fi
+                \ifnum\i=14 \ifnum\j=14 \fill[yellow!30] (0, 0) rectangle (\boxsize, \boxsize);  \fi\fi
+                \ifnum\i=18 \ifnum\j=14 \fill[yellow!30] (0, 0) rectangle (\boxsize, \boxsize);  \fi\fi
+                \ifnum\i=18 \ifnum\j=18 \fill[yellow!30] (0, 0) rectangle (\boxsize, \boxsize);  \fi\fi
+
+	            % Plot fake posteriors
+                \ifnum\i=\j % 1d diagonal
+                    \draw[domain=-\halfboxsize:\halfboxsize, samples=50, smooth, fill=blue!10, variable=\x] plot ({\x + \halfboxsize}, {1.6*\halfboxsize * exp(-(\x * \x) / (\halfboxsize/2 * \halfboxsize/2))}) node[right] {};
+                \else % 2d
+                    \draw[fill=blue!10, rotate around={45:(\halfboxsize, \halfboxsize)}] (\halfboxsize, \halfboxsize) ellipse (\halfboxsize/1.1 and \halfboxsize/2.2); 
+                    \draw[fill=blue!40, rotate around={45:(\halfboxsize, \halfboxsize)}] (\halfboxsize, \halfboxsize) ellipse (\halfboxsize/2 and \halfboxsize/4);
+                \fi
+            \end{scope}
+        }
+    }
+    \end{tikzpicture}
+
+\end{document}

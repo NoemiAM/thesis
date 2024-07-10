@@ -1,0 +1,229 @@
+% \subtitle
+% \rectormagnificus
+% \thetime
+% \theday
+% \placeofbirth
+% \thesisepigraph
+% \promotor
+% \copromotor
+% \othercomitteemembers
+% \department
+% \makethesisfrontpage
+% \makethesisannouncepage
+% \makethesiscomitteepage
+% \makethesisannouncepage
+% \makethesisepigraphpage
+
+\ProvidesPackage{thesisfrontmatter}[2004/06/04 v1.0 Jeroen Wijnhout]
+\RequirePackage{ifthen}
+
+\newboolean{THESISFM@hassubtitle}\setboolean{THESISFM@hassubtitle}{false}
+\newboolean{THESISFM@hasthesisepigraph}\setboolean{THESISFM@hasthesisepigraph}{false}
+\newboolean{THESISFM@hascopromotor}\setboolean{THESISFM@hascopromotor}{false}
+\newboolean{THESISFM@hascolofon}\setboolean{THESISFM@hascolofon}{false}
+
+\newcommand{\THESISFM@subtitle}{}
+\newcommand{\subtitle}[1]
+{
+    \setboolean{THESISFM@hassubtitle}{true}
+    \renewcommand{\THESISFM@subtitle}{#1}
+}
+\newcommand{\THESISFM@rectormagnificus}{}
+\newcommand{\rectormagnificus}[1]
+{
+    \renewcommand{\THESISFM@rectormagnificus}{#1}
+}
+\newcommand{\THESISFM@thetime}{}
+\newcommand{\thetime}[1]
+{
+    \renewcommand{\THESISFM@thetime}{#1}
+}
+\newcommand{\THESISFM@theday}{}
+\newcommand{\theday}[1]
+{
+    \renewcommand{\THESISFM@theday}{#1}
+}
+\newcommand{\THESISFM@placeofbirth}{}
+\newcommand{\placeofbirth}[1]
+{
+    \renewcommand{\THESISFM@placeofbirth}{#1}
+}
+\newcommand{\THESISFM@thesisepigraph}{}
+\newcommand{\thesisepigraph}[1]
+{
+    \setboolean{THESISFM@hasthesisepigraph}{true}
+    \renewcommand{\THESISFM@thesisepigraph}{#1}
+}
+\newcommand{\THESISFM@promotor}{}
+\newcommand{\promotor}[1]
+{
+    \renewcommand{\THESISFM@promotor}{#1}
+}
+\newcommand{\THESISFM@copromotor}{}
+\newcommand{\copromotor}[1]
+{
+    \setboolean{THESISFM@hascopromotor}{true}
+    \renewcommand{\THESISFM@copromotor}{#1}
+}
+% \newcommand{\THESISFM@copromotorsecond}{}
+% \newcommand{\copromotorsecond}[1]
+% {
+%     \setboolean{THESISFM@hascopromotorsecond}{true}
+%     \renewcommand{\THESISFM@copromotorsecond}{#1}
+% }
+
+
+\newcommand{\THESISFM@othercomitteemembers}{}
+\newcommand{\othercomitteemembers}[1]
+{
+    \renewcommand{\THESISFM@othercomitteemembers}{#1}
+}
+\newcommand{\THESISFM@colofon}{}
+\newcommand{\thesiscolofon}[1]
+{
+    \setboolean{THESISFM@hascolofon}{true}
+    \renewcommand{\THESISFM@colofon}{#1}
+}
+
+\newcommand{\THESISFM@department}
+{
+  \large  Faculteit der Natuurwetenschappen, Wiskunde en Informatica
+}
+\newcommand{\department}[1]{\renewcommand{\THESISFM@department}{#1}}
+
+\newcommand{\makethesisfrontpage}
+{
+    \newpage\pagestyle{empty}
+    \vspace{\fill}
+    \begin{center}%
+    \textsc{\Huge \@title} 
+    \ifTHESISFM@hassubtitle
+    \vskip 12pt
+    \textsc{\Large \THESISFM@subtitle}
+    \fi
+    \end{center}\par\vskip 10em
+    \vspace{\fill}
+}
+
+
+\newcommand{\makethesisannouncepage}
+{%\newpage\pagestyle{empty}
+    \vspace*{\fill}
+    \begin{center}%
+    \textsc{\Huge \@title}\par
+    \ifTHESISFM@hassubtitle
+        \vskip 12pt
+        \textsc{\Large \THESISFM@subtitle }
+    \fi
+    \vskip 2cm%
+    \textsc{\LARGE Academisch Proefschrift} \par\vskip 1cm
+    ter verkrijging van de graad van doctor\par\vskip 0.8em
+    aan de Universiteit van Amsterdam\par\vskip 0.8em
+    op gezag van de Rector Magnificus\par\vskip 0.8em
+    \THESISFM@rectormagnificus\par\vskip 0.8em
+    ten overstaan van een door het College voor Promoties \par\vskip 0.8em
+    ingestelde commissie,\par\vskip 0.8em in het openbaar te verdedigen
+    in de % \par\vskip 1em 
+    Agnietenkapel\par\vskip 0.8em
+    op \THESISFM@theday{} \@date,  te \THESISFM@thetime{} uur\par\vskip 0.6cm
+    door \par\vskip 0.8em
+    \textsc{\Large\@author}\par\vskip 0.8em
+    geboren te \THESISFM@placeofbirth
+    \end{center}
+   \vspace{\fill}
+}
+
+
+\newcommand{\makethesiscolofon}
+{
+    \newpage\pagestyle{empty}
+    \THESISFM@colofon
+}
+
+
+
+\newcommand{\makethesiscomitteepage}
+{
+    \newpage
+    \pagestyle{empty}
+    \begin{center}\textsc{\LARGE Promotiecommissie}\end{center}\par\vskip 3em
+    \textsc{\large Promotores}\par\vskip 1em
+    \hspace{.6cm}\THESISFM@promotor\par\vskip 1em
+	\hspace{.6cm}\THESISFM@copromotor\par\vskip 1em
+%    \ifTHESISFM@hascopromotor
+%        \textsc{\large Co-Promotor} \par\vskip 1em
+%        \hspace{.6cm}\THESISFM@copromotor\par\vskip 1em
+%        \fi\par\vskip 2em
+%     \ifTHESISFM@hascopromotorsecond
+%           \hspace{2cm}\THESISFM@copromotorsecond\par\vskip 1em
+%            \fi
+    \textsc{\large Overige leden}\par\vskip 1em
+    
+    \@for \THESISFM@comitteemember:=\THESISFM@othercomitteemembers \do 
+    {\hspace{.5cm}\THESISFM@comitteemember\vskip 1em}
+    \vskip 3em
+    %\textsc{\THESISFM@department}\par
+    
+    \vspace*{\fill}
+    \vfill
+     {    
+     \scshape Faculteit der Natuurwetenschappen, Wiskunde en Informatica
+ }
+ }
+
+\newcommand{\makethesisepigraphpage}
+{
+    \ifTHESISFM@hasthesisepigraph
+        \newpage\pagestyle{empty}
+        \vspace*{\fill}
+        \THESISFM@thesisepigraph
+        \vspace{\fill}
+        \newpage\pagestyle{empty}
+        \vspace*{\fill}
+    \fi
+}
+
+%%% Add my JCAPMOD.sty %%%
+
+
+
+\RequirePackage{amsmath}
+\RequirePackage{amssymb}
+\RequirePackage{epsfig}
+\RequirePackage{graphicx}
+\RequirePackage[numbers,sort&compress]{natbib}
+\RequirePackage{color}
+\definecolor{dullpurple}{rgb}{0.431,0.188,0.534}
+\definecolor{darkgreen}{rgb}{0.075,0.302,0.047}
+\definecolor{darkergreen}{rgb}{0,0.196,0.125}
+\definecolor{darkergreen2}{rgb}{0,0.294,0.188}
+\definecolor{dullred}{rgb}{0.706,0.208,0.192}
+\definecolor{darkred}{rgb}{0.545,0,0}
+\definecolor{antiquefuchsia}{rgb}{0.57, 0.36, 0.51}
+\definecolor{MaroonC}{rgb}{0,0.502,0.502}
+\definecolor{dullblue}{rgb}{0,0.298,0.49}
+
+\definecolor{blue3}{RGB}{31, 119, 180}
+\definecolor{red3}{RGB}{	214, 39, 40}
+\definecolor{orange3}{RGB}{255, 127, 14}
+\definecolor{green3}{RGB}{44, 160, 44}
+
+
+
+
+
+%apply some formatting on the biblio
+%without redefining the whole env
+\let\oldthebibliography=\thebibliography
+\let\endoldthebibliography=\endthebibliography
+\renewenvironment{thebibliography}[1]{%
+\begin{oldthebibliography}{#1}%
+\small%
+\raggedright%
+\setlength{\itemsep}{5pt}%
+}%
+{%
+\end{oldthebibliography}%
+}
+
+\endinput

@@ -1,0 +1,46 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usetikzlibrary{decorations.pathreplacing,calligraphy}
+\input{../../symbols}
+\input{../../colors}
+
+
+\begin{document}
+
+\begin{tikzpicture}[baseline=(current bounding box.center), scale=0.75]
+  % Define custom colors
+  \definecolor{blue}{RGB}{66, 117, 176}
+  % Plot area
+  \draw[very thick] (-5, -5) rectangle (0, 0);
+   % Define variables
+  \pgfmathsetmacro{\startx}{-5}
+  \pgfmathsetmacro{\endx}{-0.2}
+  \pgfmathsetmacro{\numx}{24}
+  \pgfmathsetmacro{\starty}{-0.2}
+  \pgfmathsetmacro{\endy}{-5}
+  \pgfmathsetmacro{\numy}{24}
+  % Generate linspace values and create squares
+  \foreach \ix in {0,...,\numx} {
+    \foreach \iy in {0,...,\numy} {
+        \ifthenelse{\equal{\ix}{\iy}}{
+        \pgfmathsetmacro{\x}{\startx + \ix * (\endx - \startx) / \numx}
+        \pgfmathsetmacro{\y}{\starty + \iy * (\endy - \starty) / \numy}
+        \draw [fill=blue, opacity=0.7] (\x, \y) rectangle ++(0.2, 0.2);
+        }{}
+    }
+   }
+   \draw[thick,decorate,decoration={calligraphic brace,raise=1ex}]
+    (-5,0) -- node[above right=0.6ex,align=center,font=\sffamily]{$\interest_\mathrm{macro}$}(-0.6,-4.4);
+    \draw[thick,decorate,decoration={calligraphic brace,raise=1ex, mirror}]
+    (-0.6,-4.4) -- node[left=1ex,align=center,font=\sffamily]{$\interest_\mathrm{sub}$}(0,-5);
+  % Plot area
+  \draw[very thick] (1, -5) rectangle (6, 0);
+  % Plot parameter spaces
+  \draw [fill=blue, opacity=0.7] (1, -4.4) rectangle ++(4.4, 4.4) node [midway, align=center,font=\sffamily]{$\interest_\mathrm{macro}$}; 
+  \draw [fill=blue, opacity=0.7] (5.4, -5) rectangle ++(0.6, 0.6);
+  \draw (4.7,-4.7) node {$\interest_\mathrm{sub} \rightarrow$};
+  
+\end{tikzpicture}
+
+\end{document}

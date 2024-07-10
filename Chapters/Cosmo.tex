@@ -1,0 +1,252 @@
+\chapter{Simulation-based inference for cosmological initial conditions} \label{cha:cosmo}
+
+Reconstructing astrophysical and cosmological fields from observations is challenging. It requires accounting for non-linear transformations, mixing of spatial structure, and noise. In contrast, forward simulators that map fields to observations are readily available for many applications. In this chapter, we present a versatile Bayesian field reconstruction algorithm rooted in \gls*{sbi} and  enhanced by autoregressive modeling. The proposed technique is applicable to generic (non-differentiable) forward simulators and allows sampling from the posterior for the underlying field. We show first promising results on a proof-of-concept application: the recovery of cosmological initial conditions from late-time density fields.
+
+\textit{This chapter is based on work from \cite{List:2023aa}.}
+
+
+\section{Introduction} \label{sec:cosmo-intro}
+
+Recent developments in simulation-based machine learning are increasingly used for tackling difficult astrophysical and cosmological data analysis challenges~\cite[\eg,][]{Mishra-Sharma:2021oxe,
+Cole:2021gwr, Alvey:2023npw, AnauMontel:2023stj, AnauMontel:2022ppb, Montel:2022fhv, Alsing:2017var, Alsing:2019dvb, Alsing:2019xrx, Makinen:2021nly, Modi:2023drt, Modi:2023llw, Barrue:2023ysk, Heinrich:2023bmt, Lin:2022ayr, Gagnon-Hartman:2023soa, Poh:2022ife, Lemos:2022kua, Brehmer:2019jyt, Alvey:2023naa, Bhardwaj:2023xph, Alvey:2023pkx, Karchev:2022xyn, Crisostomi:2023tle, Campeau-Poirier:2023kqd, Coogan:2022cky, Hahn:2022wgo, Jeffrey:2020aa, Saxena:2023tue}.
+While \gls*{sbi} has primarily been employed to solve relatively low-dimensional ($\lesssim 50$-dimensional) parameter estimation tasks~\cite{AnauMontel:2023stj, Alvey:2023naa, Alsing:2019xrx}, it has yet to cover higher-dimensionality problems like image reconstruction, which are an essential component in astrophysical and cosmological data analysis. 
+
+Here, we focus on the recovery of cosmological initial conditions from late-time density fields. This task is a challenging test case for new algorithms thanks to the non-linear, non-local mapping from the Gaussian target to the observation.  Cosmic inflation predicts the density in the early Universe to be highly homogeneous, with tiny density fluctuations that are extremely well described as a Gaussian random field. These density perturbations then gradually grow over cosmic time due to gravity and eventually collapse into the non-Gaussian ``Cosmic Web'' structure observed today \cite{Bond:1995yt}. 
+The reconstruction of the initial density field from late-time observations is an ill-posed problem (the early-to-late mapping is not injective on small scales, ~\cite[\eg,][]{Brenier:2003xs}). Therefore, there is an entire {\it distribution} of possible initial conditions consistent with a given late-time density field. 
+
+\paragraph{Our contribution.}  We frame the task of field reconstruction (or, viewed from a non-physical point of view, image reconstruction) as a parameter inference problem.  We combine the power of \gls*{sbi} in solving parametric inverse problems together with the scalability offered by autoregressive models. Autoregressive models have established their versatility in tackling high-dimensional distribution estimation tasks by breaking down the joint distribution into a product of conditionals \cite{Papamakarios:2017tec, Uria:2016aa}, and have been successful in conditional image modeling \cite{Oord:2016aa}. Additionally, we employ a Gibbs sampling algorithm based on exact data augmentation (GEDA) \cite{Marnissi:2019aa} to efficiently sample image parameter posteriors.
+We will formulate our method in a generic way to emphasize its applicability to a wide range of field/image reconstruction problems. Importantly, our approach accommodates arbitrary \textit{non-differentiable} forward simulators.
+
+\paragraph{Related work.} The problem of inferring cosmological initial conditions has been studied since the late 1980s (see \eg~Refs.~\cite{Croft:1996jw, Frisch:2001vw, Gramann:1993aa, Nusser:1992aa, Peebles:2020aa, Weinberg:1992aa} for classical papers), for instance by applying the least-action principle or using optimal transport. In the last decade, Bayesian models have been formulated for this task ~\cite[\eg,][]{Jasche:2012kq}, many of which rely on differentiable forward models \cite{Li:2022bsu, Modi:2020dyb}, in conjunction with Hamiltonian Monte Carlo sampling. 
+Recently, machine learning methods such as convolutional neural networks \cite{Shallue:2022mhf, Chen:2023uup}, variational inference \cite{Modi:2022pzm}, recurrent inference machines \cite{Modi:2021acq}, and score-based modeling \cite{Legin:2023jxc} have also been explored in this context. 
+
+
+\section{Methodology} \label{sec:cosmo-method}
+
+We structure our methodology as follows. First, in Section~\ref{subsec:cosmo-setup}, we set up the problem in terms of a simple hierarchical field simulator. We then introduce this work's main contribution: autoregressive gaussian likelihood estimation (Section~\ref{subsec:cosmo-auto}) and high-dimensional gaussian posterior sampling through GEDA (Section~\ref{subsec:cosmo-geda})
+
+
+\subsection{Problem setup} \label{subsec:cosmo-setup}
+
+%\subsection{Background and problem setup} 
+
+%\Gls*{sbi} methods tackle statistical inverse problems by estimating posterior distributions from model-simulations. These methods do not require explicit modeling of the data likelihood, but instead access the information within the likelihood indirectly via a stochastic simulator, which maps input parameters to simulated data. Among various \gls*{sbi} algorithms (see Ref.~\cite{Cranmer:2019eaq} for a review and Ref.~\cite{Lueckmann:2021aa} for benchmarks), we will focus on \gls*{nre}, which rephrases posterior estimation into a binary classification problem \cite{Hermans:2019ioj, Miller:2021aa}.
+
+Let us assume we have a simple hierarchical simulator
+\begin{equation}
+    p(\data| \interest)p(\interest)
+\end{equation}
+where $\data\in \mathbb{R}^{N \times N}$ is observed and $\interest\in \mathbb{R}^{N \times N}$ are image parameters (pixel values). Here, $p(\data|\interest)$ can include non-linear, non-local transformations and non-Gaussian noise, and it is only implicitly defined through a forward simulator. We will discuss how we can, for a given observation $\data_o$, estimate an approximate but computationally efficient Gaussian likelihood that locally resembles $p(\data_o|\interest)$ for a target observation $\data_o$. 
+A fast surrogate can then be leveraged for downstream image analysis tasks.
+
+
+\subsection{Autoregressive gaussian likelihood estimation} \label{subsec:cosmo-auto}
+
+Firstly, in order to obtain locally optimal data summaries $\bm s(\data)$ for the image reconstruction task, we use \gls*{nre} to estimate the marginal, pixel-wise ratios\footnote{~In this work we use the following notation for ratio estimators $\hat r(a;b) = \frac{p(a,b)}{p(a)p(b)} = \frac{p(a|b)}{p(a)}$. If necessary, multiple variables are comma separated,
+for example $\hat r(a; b, c)=\frac{p(a,b,c)}{p(a)p(b, c)}$.}
+\begin{equation}
+    \hat r(s_i(\data); \theta_i) \equiv \frac{p(s_i , \theta_i)}{p(s_i)p(\theta_i)} \;.
+\end{equation}
+We assume here that both the joint and marginal distributions can be approximated as Gaussians, whereas the mapping $s_i(\data)$ is an arbitrary learnable function (usually a neural network). 
+Means and covariances are estimated on-the-fly during training (similarly to batch normalization \cite{Ioffe:2015ovl}) and are not represented as learnable parameters.
+Secondly, in order to obtain an estimate of the joint likelihood $p(\data|\interest)$, we proceed as follows.  We split the problem auto-regressively along the observation axis, and we use \gls*{nre} to estimate
+\begin{equation} \label{eq:cosmo-autoregressive}
+\begin{split}
+        \frac{p(\data| \interest)}{p(\data)} &\simeq \frac{p(\bm s(\data)| \interest)}{p(\bm s(\data))} = \prod_{i=1}^{N^2} \frac{p(s_i| \bm s_{1:i-1}, \interest)}{p(s_i| \bm s_{1:i-1})} \\
+        &\simeq \prod_{i=1}^{N^2}  \hat r(s_i; l_i, \theta_i) = \prod_{i=1}^{N^2} \frac{p(s_i, l_i, \theta_i)}{p(s_i)p(l_i, \theta_i)} \;,
+\end{split}
+\end{equation}
+where we have introduced $l_i = (\bm L(\bm s))_i$ with $\bm L$ a (generally non-linear) autoregressive function.
+Again, we assume that the individual functions $p(s_i, l_i, \theta_i)$ are (three-dimensional multivariate) Gaussians.
+
+By rewriting the above components (for a complete derivation and definitions of $\bm Q_{\text{like}}$ and $\bm b$ see Appendix~\ref{apx:info}), we can obtain the likelihood function in the so-called \emph{information form},
+\begin{equation}\label{eq:cosmo-likelihood}
+    \ln p(\data|\interest) = -\frac12 \interest^T \bm Q_{\text{like}} \interest + \bm b \interest + C(\bm s) \;.
+\end{equation}
+In this paper, we assume that the precision matrix $\bm Q_{\text{like}}$ is diagonal. However, correlations between data summaries $\bm s$ are accounted for through the autoregressive function mentioned above; also, each component $s_i(\data)$ of the data summary may depend on all components of $\data$ and thus accounts for cross-pixel information.
+
+To enhance the robustness of Bayesian approaches in data analysis, frequently likelihood tempering techniques are employed that result in conservative estimates \cite{Holmes:2017aa, Jasche:2019aa}. 
+Tempering the likelihood amounts to raising it to a fractional power $\gamma \in [0, 1]$, leading to progressively coarser posterior samples, with the extreme case of $\gamma=0$ ($\gamma = 1$) corresponding to samples drawn from the prior (posterior) distribution.
+
+
+\subsection{High-dimensional gaussian posterior sampling} \label{subsec:cosmo-geda}
+In our Bayesian framework and assuming Gaussian distributions, we combine the estimated likelihood with the known prior to derive the posterior in the information form
+\begin{equation} \label{eq:cosmo-post}
+    \ln p(\interest|\data) = -\frac12 \interest^T \underbrace{(\bm Q_{\text{like}}+\bm Q_{\text{prior}})}_{\bm Q_{\text{post}}} \interest + \bm b \interest + C'(\bm s) \;, 
+\end{equation}
+where we have assumed a zero-mean prior, consistent with the physical problem we study in Section~\ref{sec:cosmo-exp}.
+We use the conjugate gradient (CG) algorithm\footnote{~We use a slightly modified implementation of the preconditioned CG algorithm from \url{https://github.com/sbarratt/torch_cg}.} 
+to compute the maximum-a-posteriori (MAP) estimate $\interest_{\text{MAP}}$ of the image parameters $\interest$ by solving the linear system $\bm Q_{\text{post}} \interest = \bm b$.
+The surrogate Gaussian posterior distribution is then given by $p(\interest | \data) = \mathcal{N}(\interest_{\text{MAP}}, \bm Q_{\text{post}}^{-1})$.
+Once we have the posterior distribution in the above form, we simply have to sample from it.
+Various techniques have been presented over time to tackle the problem of efficient sampling from a high-dimensional Gaussian distribution (for a recent review, see Ref.~\cite{Vono:2020aa}). 
+To obtain the Gaussian posterior samples, we use a Gibbs sampler based on the generalized exact data augmentation algorithm 
+(GEDA)~\cite{Marnissi:2019aa}. GEDA solves the problem of high-dimensional Gaussian sampling specifically for distributions whose precision matrix can be expressed as $\bm Q = \bm Q_1 + \bm Q_2$ by exploiting specific properties of $\bm Q_1$ and $\bm Q_2$. Crucially, $\bm Q_{\text{post}}$ satisfies these constraints.
+
+In general, data augmentation approaches target precision matrices of the form $\bm Q = \bm Q_1 + \bm Q_2$, which naturally arise from the statistical model under investigation.  Taking advantage of potential specific structures of $\bm Q_1$ and $\bm Q_2$, data augmentation strategies introduce one (or several) auxiliary variable $\bm u \in \mathbb R^d$ such that the joint distribution of the pair $(\bm u, \interest)$ yields simple conditional distributions, thus sampling steps for a Gibbs sampler. One can recover the target distribution $\mathcal{N}(\bm \mu, \bm Q^{-1})$ via marginalization of the auxiliary variable $\bm u$, either exactly (as in exact data augmentation schemes, like GEDA) or in an asymptotic regime.
+
+In GEDA, as described in Ref.~\cite{Marnissi:2019aa}, the underlying assumption is that the precision matrix $\bm Q$ can be split as follows:
+\begin{equation}
+\begin{split}
+    & \bm Q = \bm Q_1 + \bm Q_2 \\
+    & \bm Q_1 = \bm G_1^T \bm D_1 \bm G_1 \\
+    & \bm Q_2 = \bm U_2^T \bm D_2 \bm U_2 \,,
+\end{split}
+\label{eq:cosmo-precision_split}
+\end{equation}
+where $\bm G_1$ is arbitrary, $\bm D_1$ is diagonal and positive definite, $\bm U_2$ is unitary, and  $\bm D_2$ is diagonal. 
+GEDA introduces two auxiliary variables, $\bm u_1$ and $\bm u_2$, such that the joint distribution is
+\begin{equation}
+\begin{split}
+    p(\interest, \bm u_1, \bm u_2) \propto & \exp\left(-\frac{1}{2}\left[(\interest-\bm\mu)^T \bm Q(\interest-\bm\mu) + (\bm u_1 - \interest)^T \bm R(\bm u_1 - \interest)\right] \right) \\
+    &\times \exp\left( -\frac{1}{2}(\bm u_2-\bm G_1 \bm  u_1)^T \bm D_1(\bm u_2-\bm G_1 \bm  u_1)\right) \,,
+\end{split}
+\end{equation}
+where $\bm R = \omega^{-1} \bm I_d - \bm Q_1$, and  $\omega$ is a positive hyper-parameter of the algorithm that must obey $1 < \omega < 1/ \lvert \bm Q_1 \rvert$, meaning that $1/\omega$ should be larger than the largest singular value of $\bm Q_1$. 
+
+This joint distribution yields conditional Gaussian distributions with diagonal covariance matrices for both $\bm u_1$ and $\bm u_2$ that can be sampled efficiently by a Gibbs sampler with the following steps:
+\begin{equation}
+\begin{array}{ccl}
+    1. & \bm u_2\sim\mathcal{N}(\bm \mu_{\bm u_2}, \bm Q^{-1}_{\bm u_2}) & \text{with } \bm \mu_{\bm u_2} = \bm G_1 \bm u_1 \text{ and }\bm Q_{\boldsymbol u_2} = \boldsymbol D_1, \\
+    2.  & \bm u_1\sim\mathcal{N}(\bm \mu_{\bm u_1}, \bm Q^{-1}_{\bm u_1})  & \text{with } \bm \mu_{\bm u_1} = \interest - \omega(\bm Q_1 \interest - \bm G_1^T \bm D_1^{-1} \bm u_2) \text{ and } \bm Q_{\bm u_1} = \omega^{-1} \bm I_d, \\
+    3.  & \bm u_1\sim\mathcal{N}(\bm \mu_{\bm u_1}, \bm Q^{-1}_{\bm u_1}) & \text{with }\bm \mu = \bm Q(\bm R \bm  u_1 + \bm  Q \bm \mu) \text{ and } \bm Q = \omega^{-1} \bm I_d + \bm Q_2 \;.
+\end{array}
+\end{equation}
+
+In our setup the dimensionality is equivalent to the number of pixels $d=N^2$, the covariance matrix is $\bm Q = \bm Q_{\text{post}} = \bm Q_{\text{like}} + \bm Q_{\text{prior}}$, and $\bm G_1= \bm I$.
+
+
+\section{Experiment} \label{sec:cosmo-exp}
+\begin{figure}
+    \centering
+    \resizebox{0.8\textwidth}{!}{\includegraphics{ANRE-cosmo-result_with_2_samples.pdf}}
+    \caption{Reconstruction of cosmological initial conditions in 2D. {\it Top left:} True initial density~${\interest}_o$. {\it Bottom left}: True observation ${\data}_o$, \ie\ the (logarithm of the) late-time density evolved from the initial conditions ${\interest}_o$, corrupted by uncorrelated Gaussian noise. {\it Top center:} Two samples drawn from the posterior $p(\interest | \bm {\data}_o)$. {\it Bottom center:} Observations computed from the posterior samples shown above. {\it Upper right:} Maximum-a-posteriori probability (MAP) estimate ${\interest}_{\text{MAP}}$ of the initial conditions. {\it Bottom right:} Distribution of the reconstructed initial power spectrum.}
+    \label{fig:results}
+\end{figure} 
+
+To demonstrate the efficiency of our method, we apply it to the task of reconstructing the initial conditions of the Universe. 
+
+\paragraph{Forward model.} In this proof-of-concept study, we consider the two-dimensional case and assume Einstein--de Sitter cosmology (\ie\ non-relativistic, collisionless matter only). While our framework readily supports marginalizing over image parameters such as the power spectra of the target fields, we use a fixed power-law power spectrum for the initial density contrast $\interest = \bm \delta_{\mathrm{ini}} \in \mathbb{R}^{128 \times 128}$, which is the target of our inference.
+As a forward model, we use second-order Lagrangian perturbation theory (2LPT, see Refs.~\cite{Bouchet:1992aa, Buchert:1993aa} and Appendix~\ref{apx:2lpt}) and evolve the initial density to a time when non-linear structures have formed. The observation is then given by $\data = \log_{10}[1.1 + {\bm \delta}_{\mathrm{final}}] + \bm \varepsilon$, where ${\bm \delta}_{\mathrm{final}}$ is the density contrast at final time, the logarithm is applied element-wise, and we add $\bm \varepsilon \sim \mathcal{N}(\bm 0, \sigma^2 \bm I)$ with $\sigma = 0.15$ as a simplistic model for observational noise.
+
+\paragraph{Training strategy.}To obtain pixel-wise summaries $\bm{s}(\data)$, we use a standard U-Net \cite{ronneberger:2015u}. In our current implementation, we use an autoregressive convolution ~\cite[\eg,][]{van:2016pixel} as the autoregressive function $\bm L$. In our experiments, we observed that overly small or large kernel sizes result in somewhat biased posteriors. Interestingly, we obtain the best results with a physically motivated kernel size for the convolution, \ie\ when choosing it in such as way that the ``radius of influence'' of the autoregressive convolution (\ie\ roughly half the kernel size) matches the typical distance that particles (or fluid elements)
+have traveled by the end time -- a quantity known as displacement. Specifically, the mean displacement in our case is $\sim 5$ pixels, so we take the kernel size to be $11 \times 11$ pixels. While we find this choice to be optimal, slight bias still occurs occasionally, potentially due to the spatial heterogeneity of the displacements. Therefore, to be conservative, we use a tempered likelihood with $\gamma = 0.5$, trading some of the statistical constraining power of our method for increased unbiasedness. The importance of the specific choice of $\bm L$ (and in particular its radius of influence) indicates that a locally adaptive or multi-scale approach for $\bm L$ is a promising avenue for future exploration. We train our model on 1000 $(\data, \interest)$-pairs for 15 epochs, which only takes $\sim 3$ minutes on a laptop GPU for this experiment. Obtaining the MAP estimate with the CG algorithm takes less than 3 seconds. To obtain posterior samples with GEDA, we perform 300 sampling steps, which takes $<$ 1 second per sample (and multiple samples can be drawn in batches).
+
+\paragraph{Results.}The left column of Figure~\ref{fig:results} shows a target initial density contrast ${\interest}_o$ ({\it top}), together with a resulting noisy observation at late time ${\data}_o$ ({\it bottom}). In the two center panels, we plot samples drawn from the (tempered) posterior $p(\interest | {\data}_o)$, together with an observation of each sample. The upper right panel shows the MAP estimate ${\interest}_{\text{MAP}}$. The initial density field is faithfully reconstructed on large scales whereas, as expected, small-scale information remains unconstrained. Finally, the lower right panel shows that the power spectra of the posterior samples are consistent with the target field. The excellent agreement between reconstructed and true power spectra on small scales is aided by the fact that the power spectrum (which is fixed in our example) directly enters the GEDA sampling (see Equation~\ref{eq:cosmo-precision_split} in Section~\ref{subsec:cosmo-geda}, where the prior precision matrix ${\bm Q}_2$ is diagonalized by the Fourier transform, with the power spectrum on the diagonal of ${\bm D}_2$). We will present a detailed quantitative analysis of the results obtained with our framework in a separate publication.
+
+\section{Discussion and conclusions} \label{sec:cosmo-conc}
+We have introduced a framework for Bayesian field/image reconstruction by combining \gls*{sbi}, autoregressive modeling, and a Gibbs sampling algorithm based on exact data augmentation (GEDA). We presented promising results for a toy example related to reconstructing the initial conditions of the Universe. In view of its \textit{remarkable speed, low simulation costs, and the fact that it works for general non-differentiable simulators}, we expect our method to be capable of handling significantly higher-dimensional problems, including 3D cosmological simulations.
+
+There are multiple promising avenues to be explored in future work. For many applications---such as the reconstruction of cosmological initial conditions---formulating the problem in Fourier space can be expected to produce significantly tighter posteriors, as the input-to-output mapping is exactly invertible on large to intermediate scales, and the stochasticity of the reconstruction only affects small scales. Alternatively, wavelets ~\cite[\eg,][]{graps:1995introduction} or other multiscale techniques could be exploited.
+In this context (but also more generally), other choices for the autoregressive function $\bm L$ are worthwhile exploring, which could, for instance, implement the hierarchy between the different scales. 
+Another promising enhancement involves harnessing the sequential aspect of \gls*{sbi} techniques. In principle, a viable strategy is to employ an adaptive scheduler to control the value of $\gamma$ to draw new training samples for sequential inference rounds.
+Moreover, being \gls*{sbi}-based, our proposed method is capable of marginalizing over cosmological parameters or, alternatively, infer them in addition to the phases of the initial random field.
+
+Let us also comment on the current limitations of our method: while the assumption of Gaussianity for the prior is justified for reconstructing cosmological initial conditions, using a Gaussian likelihood is an approximation whose justification depends on the specific task at hand. We take cross-pixel information into account through the summary statistics and an autoregressive function, but we currently model the precision matrix of the likelihood as being diagonal. In addition, the susceptibility of our framework to issues encountered in the context of autoregressive models such as exposure bias \cite{bengio:2015scheduled} merits further investigation.
+
+Finally, we remark that the forward model generating ``observations'' $\data$ does not necessarily need to be a physical one, and our framework also holds great promise for generic image reconstruction problems consisting in inferring one image from another.
+
+
+%   \section*{Acknowledgments and Disclosure of Funding}
+%    This work is part of a project that has received funding from the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation program (Grant agreement No. 864035 -- UnDark). FL thanks Oliver Hahn and Cornelius Rampf for many insightful discussions.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{subappendices}
+
+\section{Derivation of the likelihood in the information form} \label{apx:info}
+
+In this appendix we show how to derive the quadratic term $\bm Q_\text{like}$ and the linear term $\bm b$ of the likelihood in the information form (Equation~\ref{eq:cosmo-likelihood}) starting from Equation~\ref{eq:cosmo-autoregressive}. Having approximated $p(s_i, l_i, \theta_i)$ with a 3-dimensional Gaussian distribution, we can write the log-likelihood as
+%
+\begin{equation}
+    \ln p(\bm s(\data)| \interest) = \sum_{i=1}^{N^2} \ln \frac{p(s_i, l_i, \theta_i)}{p(l_i, \theta_i)} = \sum_{i=1}^{N^2} \ln \frac{\mathcal{N}(\mu_{(s_i, l_i, \theta_i)}, \Sigma_{(s_i, l_i, \theta_i)})}{\mathcal{N}(\mu_{(l_i, \theta_i)}, \Sigma_{(l_i, \theta_i)})} \;.
+\end{equation}
+%
+Let us consider just one element $i$ and drop the index $i$ for simplicity of notation. Expanding the above expression for one component, we obtain
+%
+\begin{equation}\label{eq:cosmo-matrix}
+\begin{split}
+    & -\frac12
+    \begin{pmatrix}
+    s-\mu_s \\
+    l-\mu_l \\ 
+    z-\mu_z \\
+    \end{pmatrix}^T\hspace{-3mm}
+    \underbrace{
+    \begin{pmatrix}
+    \Sigma_{ss} & \Sigma_{sl} & \Sigma_{sz} \\
+    \Sigma_{ls} & \Sigma_{ll} & \Sigma_{lz} \\
+    \Sigma_{zs} & \Sigma_{zl} & \Sigma_{zz}
+    \end{pmatrix}^{-1}}_{
+    \equiv Q' = 
+    \begin{pmatrix}
+    Q'_{ss} & Q'_{sl} & Q'_{sz} \\
+    Q'_{ls} & Q'_{ll} & Q'_{lz} \\
+    Q'_{zs} & Q'_{zl} & Q'_{zz}
+    \end{pmatrix}
+    }\hspace{-3mm}
+    \begin{pmatrix}
+    s-\mu_s \\
+    l-\mu_l \\ 
+    z-\mu_z 
+    \end{pmatrix}
+    +\frac12
+    \begin{pmatrix}
+    l-\mu_l \\ 
+    z-\mu_z 
+    \end{pmatrix}^T\hspace{-3mm}
+    \underbrace{\begin{pmatrix}
+    \Sigma_{ll} & \Sigma_{lz} \\
+    \Sigma_{zl} & \Sigma_{zz}
+    \end{pmatrix}^{-1}}_{
+    \equiv Q'' = 
+        \begin{pmatrix}
+    Q''_{ll} & Q''_{lz} \\
+    Q''_{zl} & Q''_{zz}
+    \end{pmatrix}\;
+    }\hspace{-3mm}
+    \begin{pmatrix}
+    l-\mu_l \\ 
+    z-\mu_z
+    \end{pmatrix} 
+    \;.
+\end{split}
+\end{equation}
+
+For a specific observation $\data$ we can compute $\bm s$ and therefore $\bm l$, hence individual components $s$ and $l$ (where we have dropped the index $i$). We can then read off the expression in Equation~\ref{eq:cosmo-matrix} the terms that depend on $z$. We group the rest into an irrelevant constant $C(s)$.
+In this way, the \textit{quadratic term} in $z$ in Equation~\ref{eq:cosmo-matrix} is
+\begin{flalign*}
+        -\frac12 Q_{zz}z^2 &\quad\text{with}\quad Q_{zz} \equiv Q'_{zz} - Q''_{zz} \;.
+\end{flalign*}
+Each $Q_{zz}$ is a diagonal entry of $\bm Q_\text{like}$ in Equation~\ref{eq:cosmo-likelihood}, while non-diagonal components are 0 by construction. In principle, correlations between pixels in the data $\data$ can be modeled and we plan to explore it in future work.
+The \textit{linear term} in $z$ in Equation~\ref{eq:cosmo-matrix} is
+\begin{equation}
+    b  \equiv \left[-(s-\mu_s) Q'_{sz} -(l-\mu_l) Q_{lz} + \mu_z Q_{zz}\right] \;.
+\end{equation}
+Each component $b$ composes the likelihood linear term $\bm b$.
+    
+\section{Second-order Lagrangian perturbation theory (2LPT)}
+\label{apx:2lpt}
+Second-order Lagrangian perturbation theory (2LPT) describes the cosmological dynamics of a cold, collisionless medium. It is based on a fluid description of the Vlasov--Poisson system \cite[\eg][]{Peebles:2020aa} and therefore ceases to be valid as soon as particle trajectories cross (so-called ``shell-crossing''). Although the density fields we consider herein are well in the post-shell-crossing regime, 2LPT still serves as a suitable forward model for validating our image reconstruction method.
+
+The central quantity in 2LPT is the displacement $\bm \psi(\bm q, a) = \bm p(\bm q, a) - \bm q$, \ie\ the vector pointing from each Lagrangian (``initial'') position $\bm q$ to the associated Eulerian position ${\bm p}({\bm q}, a)$ at scale-factor time $a$ on the characteristic curve originating at $\bm q$. LPT expands the displacement as a Taylor series w.r.t.\ $a$, with a purely space-dependent coefficient $\bm \psi^{(n)}(\bm q)$ at the $n$-th order. For 2LPT, this yields
+\begin{equation}
+    \bm \psi(\bm q, a) = a \bm \psi^{(1)}(\bm q) + a^2 \bm \psi^{(2)}(\bm q) \;,
+\end{equation}
+where 
+\begin{subequations}
+\begin{align}
+    \bm \psi^{(1)} &= - \bm \nabla_{\bm q} \phi^0 \;, \\
+    \bm \psi^{(2)} &= -\frac{3}{7} \bm \nabla_{\bm q} \, \Delta_{\bm q}^{-1} \left[(\partial_{q_1, q_1} \phi^0) \, (\partial_{q_2, q_2} \phi^0) - (\partial_{q_1, q_2} \phi^0)^2 \right] \;.
+\end{align}
+\end{subequations}
+Here, $\phi^0$ is the initial gravitational potential, and the scale factor $a$ simply acts as a time variable and has no physical meaning in 2D.  Note that we consider Einstein--de Sitter cosmology ($\Omega_m = 1$); for extensions to the $\Lambda$CDM case and higher-order LPT, see \eg~Ref.~\cite{Rampf:2022tpg} and references therein.
+
+Given the 2LPT displacement $\bm \psi$, the density contrast $\delta$ is given by
+\begin{equation}
+    1 + \delta(\bm p(\bm q, a)) = \int \delta_\text{D}(\bm p(\bm q, a) - \bm q - \bm \psi(\bm q, a)) \ \mathrm{d}^2q \;,
+\end{equation}
+where $\delta_\text{D}$ is the Dirac $\delta$-distribution. In practice, we use cloud-in-cell interpolation \cite[\eg][]{HockneyEastwood:1988} to compute the density contrast on a Cartesian grid. Finally, let us remark that since we view the discrete density contrast as an $N \times N$-dimensional image in the main part of this work, we use the bold symbol $\bm \delta$ in that context.
+
+\end{subappendices}

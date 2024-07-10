@@ -1,0 +1,489 @@
+
+\chapter{Scalable inference with autoregressive neural ratio estimation} \label{cha:anre}
+
+In recent years, there has been a remarkable development of \gls*{sbi} algorithms, and they have now been applied across a wide range of astrophysical and cosmological analyses. There are a number of key advantages to these methods, centered around the ability to perform scalable statistical inference without an explicit likelihood. In this chapter, we propose two technical building blocks to a specific sequential \gls*{sbi} algorithm, \gls*{tmnre}. In particular, first we develop autoregressive ratio estimation with the aim to robustly estimate correlated high-dimensional posteriors. Secondly, we propose a slice-based nested sampling algorithm to efficiently draw both posterior samples and constrained prior samples from ratio estimators, the latter being instrumental for sequential inference. To validate our implementation, we carry out inference tasks on three concrete examples: a toy model of a multi-dimensional Gaussian, the analysis of a stellar stream mock observation, and finally, a proof-of-concept application to substructure searches in strong gravitational lensing. 
+
+\textit{This chapter is based on work from \cite{AnauMontel:2023stj}.}
+
+
+\section{Introduction} \label{sec:anre-intro}
+
+ Our understanding of the universe has the potential to be revolutionized by the exponentially growing influx of high quality data from current and upcoming astrophysical or cosmological surveys~\cite{DiValentino:2020vhf}. Data from current and near-future facilities (\eg~Euclid~\cite{EUCLID:2011zbd}, JWST \cite{Gardner:2006ky}, Rubin-LSST \cite{LSSTDarkEnergyScience:2012kar}, ELT \cite{Neichel:2018aa}, Gaia \cite{Prusti:2016aa}, SKA \cite{Lazio:2009aa}, CTA \cite{Knodlseder:2020onx}) will exceed the peta- and exabyte threshold. Given this status, it is crucial for the community to develop innovative data analysis pipelines, statistical algorithms, data compression techniques, and search pipelines. These will need to handle not only the escalating amount of data, but also its increasing resolution, which directly translates into growing model complexity.
+
+In general, to obtain information about physical models from the data, one has to solve the ``inverse problem", \ie~given an observation, the goal is to infer the parameters of a specific model (or set of models) that are most likely to have generated it. The main tools to solve inverse problems for modern astrophysical and cosmological data analysis have been sampling-based inference methods like \gls*{mcmc} \cite{Metropolis:1953am, Hastings:1970aa} and nested sampling \cite{Skilling:2006gxv, Feroz:2008xx, Handley:2015fda} techniques. However, these methods often rely on approximate likelihoods, and the time needed to reach convergence scales poorly with the dimensionality of the explored parameter space. More modern methods are taking up this latter challenge, including gradient-based algorithms such as Hamiltonian Monte-Carlo~\cite{Duane:1987de}, or slice-sampling techniques~\cite{Neal:aa, Handley:2015fda}.
+
+Novel techniques in the field of \gls*{sbi} are starting to overcome these challenges (for a recent review see Ref.~\cite{Cranmer:2019eaq}), and have recently gained significant popularity due to a number of appealing features (see \eg~Refs.~\cite{Alsing:2018eau, Alsing:2019xrx, Lemos:2022kua, Dax:2021tsq, Wagner-Carena:2020yun, Coogan:2022cky, Legin:2022ovl, Alvey:2023pkx, Bhardwaj:2023xph, Karchev:2022xyn, Brehmer:2019jyt, Zhao:2022ren,Cole:2021gwr} for examples of method development and applications across cosmology and astroparticle physics). First of all, \gls*{sbi} methods do not require an explicit model of the data likelihood, but instead access its information implicitly via a stochastic simulator, which maps input parameters to data. Secondly, \gls*{sbi} techniques are able to directly target marginal posteriors for the parameters of interest \cite{Alsing:2019xrx, Jeffrey:2020itg}, which typically improves scalability with the dimensionality of the parameter space. This is because an arbitrarily large number of nuisance parameters can be included whilst targeting the same set of parameters of interest.\footnote{It is important to note that if all parameters contribute equally to the data variance, the implicit data distribution will become noise-dominated. Thus, when referring to scaling to arbitrary number of variables, the data variance is implicitly kept fixed. This limit remains a challenge for sampling-based methods, but is tractable in the \gls*{sbi} framework.} Lastly, sequential \gls*{sbi} approaches that continuously use the acquired inference knowledge to guide the simulator into the relevant part of the parameter space through active learning, have been shown to be particularly simulation efficient \cite{Lueckmann:2021aa}.
+
+Whilst there are a wide range of \gls*{sbi} algorithms (we refer the reader to Section~\ref{subsec:sbi} for a broad overview), the main focus of this work will be \gls*{tmnre} \cite{Miller:2020hua, Miller:2021aa}. This is a sequential implementation of the general neural ratio estimation technique \cite{Hermans:2019ioj} that composes well with marginalisation. In essence, neural ratio estimation trains a neural network to approximate the posterior-to-prior ratio by solving a binary classification problem (for more details see Section~\ref{subsec:tmnre-nre}).
+\Gls*{tmnre} has been shown to be successful in a number of different physics applications, such as cosmic microwave background analyses \cite{Cole:2021gwr}, strong lensing image analysis \cite{Montel:2022fhv, Coogan:2022cky}, supernovae Ia cosmology \cite{Karchev:2022xyn}, gravitational wave parameter inference \cite{Bhardwaj:2023xph, Alvey:2023naa}, along with other applications \cite{Gagnon-Hartman:2023soa, Saxena:2023tue, AnauMontel:2022ppb, Alvey:2023pkx}.
+
+So far, \gls*{tmnre} applications have focused on estimating low-dimensional ($d \lesssim 2$) marginal posteriors for the parameters of interest. This choice was motivated by the fact that directly targeting these low-dimensional marginal posteriors alleviates sampling problems associated with high dimensionality, whilst still maintaining much of the information relevant for scientific conclusions. 
+Nevertheless, there are situations when focusing on low-dimensional marginal posterior estimates makes \gls*{tmnre} inherently inefficient, for example when the marginals of interest are highly correlated (or multi-modal). In these cases it is therefore necessary to produce accurate high-dimensional joint estimates to account for these correlations, since higher-dimensional structure can be obscured by low-dimensional projections. This limitation becomes especially relevant for the sequential aspect of the algorithm, which cannot leverage the information regarding the correlations while guiding the simulations. However, the necessity for high-dimensional joint estimates clashes with one know failure mode of density ratio estimators, the so called ``density-chasm problem", described in Ref.~\cite{Rhodes:2020aa}. In essence, density ratio estimators can fail whenever the gap (in the sense of Ref.~\cite{Rhodes:2020aa}) between the two densities is large, since the binary classifier can obtain almost perfect accuracy with a relatively poor estimate of the density ratio. This problem is exacerbated in high-dimensions. 
+
+The present work is a step forward towards addressing these competing limitations. Here, we propose two new building blocks of the \gls*{tmnre} framework: an \emph{autoregressive} implementation of neural ratio estimation for scalable, high-dimensional (marginal) posterior inference, and a \emph{slice-based nested sampling algorithm} to efficiently draw not only posterior samples, but also constrained prior samples. The latter set of samples, as was discussed in Section~\ref{subsec:tmnre-t}, are necessary for \gls*{tmnre}'s implementation of active learning. 
+
+In recent years, autoregressive models have shown great potential in scaling to high-dimensional distribution estimation problems, see \eg~Refs.~\cite{Germain:2015yft, Uria:2016aa, Papamakarios:2017tec}. The term ``autoregressive" originates from the time-series modeling literature, where it refers to the practice of using previous time-step observations to predict the value at the current time step. Autoregressive models function in a similar fashion by decomposing a $d$-dimensional joint density into a product of $d$ 1-dimensional conditional distributions, as in Equation~\eqref{eq:anre-autoregressive}. An autoregressive model is then defined by the parameterization of all $d$ conditionals.
+
+We introduce the slice sampling component because neural ratio estimators do not come with sampling functionalities. In general, to sample from the estimated (marginal) posterior, we require Monte Carlo sampling algorithms, especially in high dimensions. Moreover, we are interested in obtaining constrained prior samples for the purposes of active learning. In this context, whilst nested sampling was primarily born as a general purpose integration algorithm in high-dimensions, it has primarily been applied to perform Bayesian inference, in particular to estimate the Bayesian evidence and the posterior. Interestingly, at the heart of nested sampling algorithms resides also the problem of constrained prior sampling \cite{Ashton:2022grj}. Motivated by the success of slice-based nested samplers \cite{Neal:aa, Handley:2015fda}, we implement a custom slice sampler to draw \emph{both} posterior and constrained prior samples.  
+
+\vspace{10pt}
+ The structure of this chapter is as follows. We introduce this work's main contribution: autoregressive neural ratio estimation and prior truncation through slice-based nested sampling, in Section~\ref{sec:anre-method}. In Section~\ref{sec:anre-experiments}, we present results on a toy example, and applications to stellar streams and substructure parameter inference in strong gravitational lensing images, which initially motivated the development of the presented tools. Finally, we provide some discussion regarding possible limitations and outlook, concluding in Section~\ref{sec:anre-conclusion}. 
+
+\vspace{10pt}
+ \textbf{Code.} We release a publicly available implementation of the autoregressive ratio estimator model in the \gls*{tmnre} package \texttt{swyft}\footnote{\url{https://github.com/undark-lab/swyft}}, and an implementation of the slice-based nested sampler in \texttt{torchns}\footnote{\url{https://github.com/undark-lab/torchns}}.
+
+
+\section{Methodology} \label{sec:anre-method}
+
+ Up to now, applications of \gls*{tmnre} have typically focused on estimating low-dimensional ($d \lesssim 2$) marginal posteriors. On the other hand, whilst correlations between two parameters can always be estimated by training an appropriate ratio estimator, doing this for all pairwise combinations of a large number of parameters becomes quickly infeasible. Furthermore, even if it were done, two-dimensional correlations do not provide any information about higher order correlations since they are just projections. In certain scenarios, this might be crucial for calibrating the quality and accuracy of the inference methods and strongly motivates the development of techniques able to robustly estimate higher-dimensional posterior distributions.
+
+As discussed in Section~\ref{sec:anre-intro}, however, there are challenges related to both the estimation of high-dimensional ratios and subsequently sampling from them. Here, we propose two new building blocks of the \gls*{tmnre} framework to address these issues: \emph{autoregressive \gls*{nre}} for scalable, multi-dimensional (marginal) posterior estimation, and \emph{slice sampling} to efficiently sample from a multi-dimensional posterior and truncated prior.\footnote{This work has been informed by private communications surrounding a complementary paper in preparation \cite{PolySwyft}.}
+
+\subsection{Autoregressive Neural Ratio Estimation} \label{subsec:anre-anre}
+
+ Across the various \gls*{sbi} techniques, autoregressive models have been developed in the context of density estimation algorithms, NPE~\cite{Uria:2016aa, Papamakarios:2017tec} and NLE~\cite{Papamakarios:2018aa}, and have been shown to be among the best performing density estimators~\cite{Lueckmann:2021aa}. They have been successfully applied to the Dark Energy Survey and global 21cm signal experiments~\cite{Bevins:2022qsc}, and for deep generative models for galaxy image simulations~\cite{Lanusse:2020aa}.
+
+In a nutshell, autoregressive models turn the estimation of a $d$-dimensional joint density into the estimation of $d$ 1-dimensional conditional densities using the chain rule of probability
+\begin{equation}\label{eq:anre-autoregressive}
+    p(\interest \mid\data) =  p(\theta_1\mid\data) \prod_{i=2}^d p(\theta_i\mid\data, \interest_{1:i-1})\;,
+\end{equation}
+where we have introduced the compact notation $\interest_{1:i-1} \equiv \{\theta_1, ..., \theta_{i-1}\}$. One can thus define an autoregressive model simply by specifying a parameterization of all $d$ conditionals.
+
+Within the NRE framework, it is also possible to perform \emph{conditional inference}. In this case, the binary classifier must be informed about the value of the parameters we want to condition over. More specifically, in order to learn the conditional posterior for parameter $\theta_i$ given parameter $\theta_j$ (with $j \neq i$), the binary classifier will be shown as positive training example $\data, \theta_j, \theta_i \sim p(\data, \theta_j, \theta_i)$ and as negative training examples $\data, \theta_j, \theta_i \sim p(\data, \theta_j)p(\theta_i)$. We can then express the conditional ratio trained on $(\data, \theta_j\}, \theta_i)$ pairs as
+\begin{equation}
+    \label{eq:ratio_conditional}
+    r(\theta_i;\data \theta_j) \equiv
+    \frac{p(\theta_i \mid \data, \theta_j)}{ p(\theta_i)} \, .
+\end{equation}
+It is possible to condition more than one parameter $\theta_i$ on more than one variable $\theta_j$ just by correctly passing to the classifier positive and negative training examples as defined above. 
+
+We can then use 1-dimensional versions of these ratio estimators, conditioned on multiple variables, to implement autoregressive \gls*{nre}. More in details, one way to estimate our ratio of interest $r(\interest; \data)$, as defined in Equation~\eqref{eq:sbi-ratio}, auto-regressively is by considering the following components. The first quantity, $A$, estimates the ratio between the joint posterior distribution and the independent marginal priors,
+\begin{equation} \label{eq:anre-A}
+\begin{split}
+    A &= 
+    \frac{p(\interest\mid \data)}{\prod_{i=1}^d p(\theta_i)} \\
+    & = \frac{p(\theta_1\mid \data)}{p(\theta_1)} \prod_{i=2}^d \frac{p(\theta_i\mid \data, \interest_{1:i-1})}{ p(\theta_i)} \\
+    & = 
+    r(\theta_1;\data)  \prod_{i=2}^d  r(\theta_i;\data, \interest_{1:i-1}) \;.
+\end{split}
+\end{equation}
+The second component, $B$, models the dependencies between the model parameters,
+\begin{equation} \label{eq:anre-B}
+\begin{split}
+    B &= 
+    \frac{p(\interest)}{\prod_{i=1}^d p(\theta_i)} \\
+    & = \prod_{i=2}^d \frac{p(\theta_i \mid \interest_{1:i-1})}{p(\theta_i)} \\
+    & = \prod_{i=2}^d r(\theta_i;\interest_{1:i-1}) \;.
+\end{split}
+\end{equation}
+Our key quantity of interest is then obtained as 
+\begin{equation} \label{eq:anre-AB}
+    r(\interest;\data) = \frac{p(\interest \mid \data)}{p(\interest)} = A/B \;.
+\end{equation}
+It is important to highlight the role of the $B$ component in this algorithm. In the case of sequential inference, even if the initial prior distributions from which parameters are drawn are independent, the sequential proposal distribution will account for non-trivial correlations between parameters in the constrained prior region (via the condition in Equation~\eqref{eq:gamma_r}). It is therefore crucial to properly account for these correlations between parameters through $B$ since they will implicitly be present in the training data. 
+
+Also note that in both the definitions of $A$ and $B$, we have used the notation introduced in Equation~\eqref{eq:ratio_conditional} for conditional ratios. An alternative formulation of an autoregressive model for ratio estimation that uses a single network to model both components is presented in Appendix~\ref{apx:anre-anre}.
+
+The key advantage of autoregressive NRE lies in its ability to handle intricate dependencies among variables by focusing on one parameter at a time. In ``vanilla" NRE, for high-dimensional parameter spaces, the discriminating power of the binary classifier can be quickly saturated leading to a poor estimate of the joint density ratio. Here, the full joint distribution is modeled through 1-dimensional conditional ratios, leading to a more stable and accurate estimation of the full joint ratio. However, the presented autoregressive NRE method does inherit the generic drawbacks of autoregressive models. Perhaps the most relevant is their sensitivity to the order of the conditional probabilities, since in practice it is difficult to know which of the factorially many orders is the most efficient in each case \cite{Papamakarios:2017tec}. A possible solution was presented in \cite{Uria:2013aa}, that introduced an efficient procedure to simultaneously train an autoregressive model for all possible orderings of the variables. We will study this effect explicitly in the stellar streams example given in Section~\ref{subsec:anre-stream}. 
+
+
+\subsection{Prior truncation strategies}\label{subsec:anre-truncation}
+
+ The original prior truncation scheme proposed in the \gls*{tmnre} formalism \cite{Miller:2021aa} is a parameter-wise truncation based on 1-dimensional marginal ratio estimators. As a result, the prior gets restricted to a truncation region that has the shape of a hyper-rectangular box (``box" truncation), 
+\begin{equation} \label{eq:anre-box}
+     p^{(R)}_{\Gamma}(\interest) = \frac1Z \mathbb{I}(\theta_1 \in \Gamma_{\theta_1}^{(R-1)}) \times \cdots \times\mathbb{I}(\theta_d \in \Gamma_{\theta_d}^{(R-1)}) p(\interest) \,,
+\end{equation}
+where we have introduced the indicator function $\mathbb{I}$ which is unity on the truncated prior support $\Gamma_{\theta_i}^R$ and zero otherwise, and the normalizing constant $Z$ which can be interpreted as the fractional volume of the truncated prior.
+
+One of the drawbacks of using this box truncation scheme is that it neglects parameter correlations. For higher ($d \gtrsim 2$) dimensional marginal posteriors, this results in the new constrained region usually containing significantly more probability mass than is actually required (see \eg~\cite{Karchev:2022xyn}).
+
+In this section, we propose a parameter block-wise truncation scheme (``correlated" truncation) based on high-dimensional ratio estimators that accounts for correlations between parameters. This correlated truncation region is defined through a hard likelihood-to-evidence ratio constraint,
+\begin{equation} \label{eq:anre-block}
+    \tilde p^{(R)}_{\Gamma}(\interest) = \frac1Z \mathbb{I}(\interest \in \Gamma_{\interest}^{(R-1)}) p(\interest) \,,
+\end{equation}
+where $\Gamma_{\boldsymbol{\theta}}^{(R - 1)}$ is as defined in Equation~\eqref{eq:gamma_r}. In Figure~\ref{fig:anre-ns}, we show a visual comparison of the two prior truncation strategies in a simple 2-dimensional parameter space. However, following this approach brings about a new challenge that will be addressed in the next section: how does one efficiently define the boundaries of $\Gamma_{\interest}^{(R)}$ and sample from within it?
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.8\linewidth]{TikZ/truncation_ns.pdf}
+	\caption{Prior truncation strategies. We visualize in a 2-dimensional parameter space a constrained prior region using hyper-rectangular boxes as defined in Equation~\eqref{eq:anre-box} (red rectangle on the left), and a constrained prior region using hard iso-likelihood-to-evidence ratio contours as defined in Equation~\eqref{eq:anre-block} (red ellipse on the right). Sampling from hyper-rectangular boxes is equivalent to uniform sampling, whereas sampling from iso-likelihood-to-evidence ratio contours requires more sophisticated sampling algorithms. In particular, we use a slice-based nested sampler as explained in Section~\ref{subsec:anre-ns}. 
+}
+\label{fig:anre-ns}
+\end{figure}
+
+
+\subsection{Sampling from ratio estimators: posterior and constrained prior samples} \label{subsec:anre-ns}
+
+ As discussed in Section~\ref{sec:anre-intro}, NRE does not have sampling functionalities and Monte Carlo-based sampling algorithms are used to obtain samples from the approximate posterior.\footnote{It is worth noting that this is somewhat contrary to NPE, where one can directly draw posterior samples from the normalising flow.} Moreover, we are not only interested in posterior samples, but also in how we can efficiently draw constrained prior samples from a region defined through a hard likelihood-to-evidence ratio constraint. Here, we propose utilizing a \emph{slice-based nested sampling algorithm}, as an efficient method to sample both posterior samples and constrained prior samples from the ratio estimator. Importantly, constrained prior samples can be obtained through the same nested sampling techniques. Our sampler choice is strongly inspired by the success of slice-based nested samplers in efficiently and reliably exploring high dimensional parameter spaces \cite{Handley:2015fda, Handley:2015fda}. Additionally, slice sampling was proposed in Ref.~\cite{Papamakarios:2018aa} as a sampler for NLE. 
+
+First proposed in Ref.~\cite{Skilling:2006gxv}, nested sampling allows one to sample from high-dimensional probability densities by evolving an ensemble of live points through a high-dimensional parameter space. At the core of nested sampling algorithms is the problem of constrained prior sampling within iso-likelihood contours \cite{Ashton:2022grj}. This opens up the possibility to re-use technology developed for nested sampling for the purpose of sampling not only from the posterior, but also from the constrained prior region, as defined in Equation~\eqref{eq:gamma_r} within iso-likelihood-to-evidence ratio contours.\footnote{In traditional implementations the contours are defined by iso-likelihood levels, not iso-likelihood-to-evidence ratio levels.}
+
+Typically, nested sampling algorithms start by drawing a collection of live points from the prior. In the current context, one evolves them by discarding the point with the lowest ratio, denoted with $r_\mathrm{min}$, and replacing it with a new point subject to the constrain $r > r_\mathrm{min}$. The remaining live points are now uniformly distributed over a compressed volume (as they are drawn from a constrained prior as in Equation~\eqref{eq:gamma_r} with $\epsilon = r_\mathrm{min}$).
+
+The most challenging aspect of the nested sampling algorithm is drawing new live points under the hard likelihood-to-evidence ratio condition $r > r_\mathrm{min}$. One possible reliable and efficient way to do so is through slice sampling, first introduced in \cite{Neal:aa}. Starting from one randomly chosen live point, slice sampling builds a chain of proposed live points by taking sequential 1-dimensional steps in a random direction. The length of this chain controls the amount of correlation between the new live point and the initial one (for further information see Ref.~\cite{Buchner:2021kpm}).
+
+In our slice sampling implementation, we use a number of different ploys to make our sampling scheme more efficient for the purposes at hand. Firstly, instead of a single chain, the user can define the number of slice sampling chains to draw new live points that will be run in parallel. Secondly, the sampler is implemented such that it allows vectorized evaluations of the natively GPU-based ratio estimator, which provides considerable computational speed-up. We also provide useful functionality to compute the threshold $\epsilon$ that defines the constrained prior region in Equation~\eqref{eq:gamma_r}, based on how much probability mass from the current approximate likelihood-to-evidence ratio one wants the region to include. This is relevant for setting the convergence criterion related to posterior mass that defines the iso-likelihood-to-ratio contour, as in Equation~\eqref{eq:gamma_r}. Importantly, inference errors caused by truncation arise when not enough posterior mass is included in the truncated regions, resulting in wrongly excluded parts of the parameter space of interest (for a detailed discussion and test of the impact that overly tight complex truncation induces on inference, we refer the reader to Appendix 6.10 of Ref.~\cite{Deistler:2022aa}). 
+For sequential \gls*{sbi} applications, we advise the user to conservatively choose the threshold $\epsilon$ such that the truncated prior encloses the highest probability density (HPD) region that contains at minimum $99.9 \%$ (\ie~$1 - 10^{-3}$) of the probability mass. 
+
+\paragraph*{Network stability during sampling.}
+During the sampling step, numerical issues can arise because the slice sampler may evaluate the network outside of the current truncation region $\Gamma^{(R)}_{\boldsymbol{\theta}}$ when searching for new points.
+In order to detail the issue, we recall our definition of $B={p(\boldsymbol \theta)}/{\prod_{i=1}^d p(\theta_i)}$, which is zero outside of the support of the joined distribution $p(\boldsymbol \theta)$. Formally, this is not a problem for the ratio $A/B$ (see Equation~\eqref{eq:anre-AB}), because that region coincides with the prior region that we truncated away in our truncation procedure (\ie~regions of very low posterior mass). In practice, during sampling, since the network in a given round $R$ has not seen training samples outside of the constrained prior $\tilde p^{(R)}(\interest)$ (see Equation~\eqref{eq:anre-block}), this can lead to estimated values of our neural likelihood-to-evidence ratio $A/B$ which are much larger than the formal expectation (indeed $B = 0$ exactly outside this region).
+
+We solve this stability issue with the following strategy, that has no impact within the truncation bounds $\Gamma^{(R)}_{\boldsymbol{\theta}}$, and therefore on the results.
+During the sampling step, the following substitution is performed in the network
+\begin{equation}
+    B \rightarrow \text{max}(B, \min_{\Gamma^{(R)}_{\boldsymbol{\theta}}}B). 
+    % \qquad \text{in sampling round (R+1)}.   
+\end{equation}
+Hence, $B$ can be at minimum as small as the smallest value it can take inside the truncation bound $\Gamma^{(R)}_{\boldsymbol{\theta}}$. As a result, the substitution will never happen inside the constrained region $\Gamma^{(R)}_{\boldsymbol{\theta}}$ where the network was trained, and consequently will not have any impact on the new truncation set $\Gamma^{(R+1)}_{\boldsymbol{\theta}} \in \Gamma^{(R)}_{\boldsymbol{\theta}}$. We further emphasize that by construction, the truncation region should never expand throughout a round, so this new substitution only plays the role of fixing the stability issues outside the constrained prior.
+
+
+\vspace{10pt}
+ To summarise, in this section we have presented the main contributions of this work in the form of two new building blocks of the \gls*{tmnre} framework: autoregressive \gls*{nre} and a slice-based nested sampler to sample posterior and constrained prior samples from a ratio estimator. In the next section, we will apply these newly developed tools to a toy Gaussian example, as well as two astrophysical applications -- stellar streams and strong lensing.
+
+
+\section{Experiments} \label{sec:anre-experiments}
+
+ We first apply our newly developed tools to a toy multivariate Gaussian example. For more realistic settings, we consider two astrophysics problems: stellar streams parameter inference and substructure parameter inference in strong gravitational lensing observations.
+
+\subsection{Multivariate Gaussian: scalability} \label{toy}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.7\linewidth]{ANRE-toy.png}
+\caption{
+ Multivariate Gaussian toy example results. In the three panels we show the KL divergence value between the analytical posterior distribution and the estimated ones from the autoregressive (ANRE, in red) a non-autoregressive (\gls*{nre}, in blue) models. The metric is shown as a function of simulation budget in three different dimensionalities ($d=3, 10, 30$). For our fixed network capacity, \gls*{nre} is able to perform as well as ANRE for high simulation budget in low-dimensional scenarios. For higher-dimensionality, the quality of posterior samples obtained from the autoregressive model matches significantly more closely the one from the analytic solution based on the KL divergence value.}
+\label{fig:toy}
+\end{figure}
+
+ In this first application, we are interested in testing how the performance of ``vanilla" \gls*{nre} and autoregressive \gls*{nre} models scale with dimensionality and simulation budget. To do so, we consider a $d$-dimensional Gaussian toy model with strong correlations. The parameters $\interest \in \mathbb{R}^d$ are drawn from a multivariate normal prior $p(\interest)=\mathcal{N}(\mathbf 0, \mathbf{\Sigma_0})$, with diagonal covariance matrix $\mathbf{\Sigma_0}= 0.1 \odot \mathbf I$. The observations $\data \in \mathbb{R}^d$ are drawn from a multivariate normal likelihood $p(\data \mid \interest)= \mathcal{N}(\interest, \mathbf{\Sigma})$, with fixed covariance $\mathbf{\Sigma}$, which has correlation scales of $0.1$ for the off-diagonal entries, and $0.11$ for the diagonal ones. As a reference, we use the analytic solution for the true posterior given by Bayes' theorem.
+
+We test \gls*{nre} and autoregressive \gls*{nre} for dimensions $d = 3, 10, 30$ and for different simulation budgets of $N_\mathrm{simulations} =10^3, 10^4, 10^5$ training data examples. Each conditional ratio in the autoregressive network is modeled with $4$ ResNet \cite{He:2015wrn} blocks with $64$ hidden features (implemented in \texttt{swyft}). The ``vanilla" \gls*{nre} network is instead modeled with a single network whose number of ResNet blocks and parameters is adjusted accordingly to match the total number of parameters in the autoregressive model. 
+
+To compare the performance of the two models we consider the Kullback-Leibler (KL) divergence $D_\mathrm{KL}$ between the posterior estimated by each model and the analytical solution. The KL divergence is a statistical distance that measure the difference between two probability distributions; the closer it is to zero, the better agreement there is. The mean and the covariance of the estimated posterior are computed from the posterior samples of the two models, obtained with our slice-based nested sampler. 
+Our results are shown in Figure~\ref{fig:toy}, where each point is the mean KL divergence of 10 different observations. The error bar represents the standard deviation of these values. In low-dimensional scenarios ($d=3$), \gls*{nre} is able to perform as well as autoregressive \gls*{nre} for high simulation budget. For higher-dimensionality, the quality of posterior samples obtained from the autoregressive model matches significantly more closely the one from the analytic solution for lower simulation budgets. In Appendix~\ref{apx:anre-toy}, we show the comparison between the analytical posterior and the estimated posterior with simulation budget $N_\mathrm{simulations} = 10^{5}$ from the two models for one observation with $d=10$.
+
+\subsection{Stellar streams: autoregressive variable ordering} \label{subsec:anre-stream}
+
+\begin{figure*}
+    \centering
+     \begin{tikzpicture}[every node/.style={anchor=center}]
+        \node(a) at (8,4){ \includegraphics[width=\linewidth]{ANRE-corner_streams.png}};
+        \node(b) at (12,6){\includegraphics[height=6cm]{ANRE-loss.png}};
+    \end{tikzpicture}
+    \caption{Stellar streams experiment results. \emph{Corner plot:} The corner plot shows the comparison between the inference results using different parameter ordering schemes across those parameters that are constrained in the analysis (for the full set, see Appendix~\ref{apx:anre-streams}). Order A (most constrained parameters to least constrained) is shown with red contours, whilst Order B (least constrained to most) is shown in blue. We see that Order A performs marginally better in terms of precision, although the improvement is somewhat marginal. The true injected values are shown with black dashed lines and dots. \emph{Upper right inset:} This inset shows the training loss (see Equation~\eqref{eq:sbi-bce}) as a function of the number of training steps for the two orderings. We see that Order A achieves a lower value of the loss, in line with the conclusions from the corner plot. The validation loss for each case is shown with black dashed lines.}
+    \label{fig:streams_loss}
+\end{figure*}
+
+ Stellar streams are very old, dynamical objects in the Milky Way that form as the result of the tidal disruption of objects such as globular clusters or small dwarf galaxies as they orbit the host. In principle, they can act as detailed tracers of the galactic potential, the disruption history and physics of the star clusters, and even possible dark substructures in the Milky Way (see \eg~Refs.~\cite{Erkal:2015kqa,Banik:2018pjp,Banik:2018pal,Koposov:2009hn,Bonaca:2014qia,Amorisco:2016evb,Bovy:2016chl,Malhan:2022nfe} for examples of the existing analyses). On the other hand, robust analysis of these objects is challenging for a number of reasons. Firstly, simulating the stream in full generality is computationally challenging, so delicate modeling choices need to be made. Secondly, the statistical properties of the resulting stream are difficult to write down explicitly in the form of a likelihood, mainly due to complicated observational effects such as membership probabilities in \eg~Gaia data \cite{Gaia:2018ydn,Gaia:2021aa}. Combined with the general simulation efficiency that has been observed with neural ratio estimation, this strongly motivates the application of \gls*{sbi} techniques to such a problem, something that has been studied in detail in Ref.~\cite{Alvey:2023pkx} (see also Ref.~\cite{Hermans:2020skz}).
+
+In the current context, we will use the inference of stream model parameters in an identical set up to Ref.~\cite{Alvey:2023pkx} to highlight a relevant aspect of the autoregressive algorithm presented in this work. Specifically, we use the case study to highlight the implications that varying the ordering of parameters in the conditional distributions product found in Equation~\eqref{eq:anre-A} has on inference performance. The intuition that we wish to test is the following: we expect that the distribution $p(\theta_i | \data)$ is most useful to learn if $\theta_i$ is well constrained. Similarly, if $\theta_j$ is not well constrained, then adding conditional information \eg~in $p(\theta_j | \data, \interest_{1:j-1})$ can add relevant information. With this said, the expectation is that an approximately optimal ordering runs from $\theta_1$ as the most constrained parameter (relative to the prior), and $\theta_d$ as the least constrained parameter.
+
+Given the analysis in Ref.~\cite{Alvey:2023pkx}, we have good expectations about the relative constraining power of the streams analysis on various parameters. As such, we choose two orderings: Order A which runs from most to least constrained, and Order B which runs vice versa (see Appendix~\ref{apx:anre-streams} for details). We train an autoregressive estimator in both cases to perform inference on all parameters of the model. The results of this experiment are shown in Figure~\ref{fig:streams_loss} in terms of the resulting posterior distributions, as well as the training and validation loss curves for the neural network training process. 
+
+There are two things to note from Figure~\ref{fig:streams_loss}: firstly, the ordering of parameters does have an effect on the training procedure, with the expectation laid out above clearly realised. In other words, we see a plateauing of the optimal training and validation loss for Order B at a value that is clearly larger than the asymptotic value in the case of Order A. In addition, broadly the overall quality of posterior inference on parts of the model that are well measured is of higher quality with Order A. Together, this suggests that the general intuition regarding parameter ordering in autoregressive models holds here also. With that being said, however, we do observe that the `penalty' for choosing a non-optimal ordering is not severe, at least in this case, and high fidelity inference could be achieved by \eg~increasing the simulation budget (see Appendix~\ref{apx:anre-streams} for an example), or following the prior truncation scheme described above and iterating the simulation generation, training, and inference steps. To be clear on this last point, this example is designed to demonstrate for fixed simulation budget and fixed network architecture the impact of variable ordering. We expect in this particular case that if the prior truncation scheme is followed, the posteriors will continue to shrink and converge to the same answer. For high precision inference, we advise that on convergence, an explicit test varying the ordering is carried out to confirm that the posteriors do not shift by more than the desired sensitivity. For full technical details regarding this example, see Ref.~\cite{Alvey:2023pkx} or Appendix~\ref{apx:anre-streams}.  Also in Appendix~\ref{apx:anre-streams}, we show two other random orderings to highlight the relative insensitivity to this choice and build on the example in \autoref{toy}.
+
+\begin{figure*}
+ \begin{tikzpicture}[every node/.style={anchor=center}]
+    \node(b) at (11,8){\includegraphics[height=4.5cm]{ANRE-sub_new.png}};
+    \node(a) at (8,4){\includegraphics[width=\textwidth]{ANRE-corner.png}};
+\end{tikzpicture}
+\caption{Strong gravitational lensing experiment results. \emph{Corner plot:} The corner plot shows the comparison between the macro-model parameter inference results using the autoregressive \gls*{nre} model (ANRE, red contours) and the non-autoregressive one (\gls*{nre}, blue contours). The true values are shown with black dashed lines and dots and are shown in Table~\ref{tab:anre-lensing-params}. \emph{Upper right inset:} The inset shows the results for subhalo parameter inference for our target mock observation.
+}
+\label{fig:corner}
+\end{figure*}
+
+
+\subsection{Strong gravitational lensing: correlated truncation} \label{subsec:lensing}
+
+ As described in Chapter~\ref{cha:lensing}, galaxy-galaxy strong gravitational lensing occurs when the paths of light rays from a background galaxy are distorted by the mass of an intervening lens galaxy before entering a telescope \cite{Meneghetti:2016aa}. This leads to extremely distorted ring-shaped images with multiple copies of the source. If a small-scale dark matter halo is present in such a system, its distortions will be localized, mostly impacting the image of the source along the nearest line of sight. As first proposed in \cite{Mao:1997ek}, by carefully analyzing the relationship between the multiple images of the source, the distortions due to a dark matter perturber can be disentangled from possible variations in the source light and its properties can be measured.
+
+In reality, substructure parameter inference in strong gravitational lensing systems is a very challenging task for a number of reasons. In particular, the desired signal manifests as percent level variations, lensing systems are remarkably complicated, and the variance between images is high (\ie~observations are very diverse). A targeted \gls*{sbi} approach to this ``needle in a haystack" type of analysis is therefore well-motivated and has been proven successful, see \eg~Refs.~\cite{Coogan:2020yux, Coogan:2022cky}. 
+
+For this application, we consider a lensing system with the following components: source light, lens light, lens mass distribution, and external shear (which we collectively call the macro-model); and one single subhalo. More details on the system and noise model can be found in Appendix~\ref{apx:anre-lensing}. The blending effect due to the overlap of the light emitted by the lensed source and by the lens itself complicates the interpretation and analysis of observed lensed systems, and makes it challenging to isolate and study the properties of the lensed source. This blending effect can be mitigated if multi-wavelength observations are available. Usually the lens light gets subtracted assuming the best-fit value (see \eg~Ref.~\cite{Vegetti:2012mc}). In this \gls*{sbi} application, we leave it free to vary and infer its parameters at the same time as all other components, accounting in the analysis for its uncertainties and the correlations it has with the rest of the system components.
+
+We perform inference on the simulated target observation shown in Figure~\ref{fig:corner}, generated with the parameters in Table~\ref{tab:anre-lensing-params}. The first step in the analysis is to reduce training data variance by constraining the macro-model parameters prior. Starting from the full macro-model prior shown in Table~\ref{tab:anre-lensing-params}, we use the procedure described in Refs.~\cite{Coogan:2022cky, Montel:2022fhv} to constrain it sequentially via \gls*{tmnre} rounds using box truncation. When convergence\footnote{We define the ratio estimator to be converged when, after two consecutive rounds in which we double up the simulation budget, the constrained hyper-rectangular box prior has shrunk by less than 10\%.} is reached, we are not able to reduce any further the data variance displayed by the simulations via 1-dimensional marginal posterior estimation and box truncation.
+
+As previously discussed in Section~\ref{subsec:anre-truncation}, a disadvantage of using hyper-rectangular boxes lies in the fact that for high-dimensional and correlated parameter spaces the constrained region contains more probability mass than required. We will now employ a parameter block-wise correlated prior truncation strategy instead of box truncation, as presented in Section~\ref{subsec:anre-truncation}. In Figure~\ref{fig:block}, we show a simple visualization of the two prior truncation strategies for this specific application.
+
+In order to learn the macro-model parameter correlations, especially the ones between lens light and source light, we model the joint posterior of the  macro-model parameters. We train two models to estimate the macro-model joint ratio: a ``vanilla" \gls*{nre} model and the autoregressive \gls*{nre} model presented in Section~\ref{subsec:anre-anre}. We used the same simulation budget and amount of network weights (for more details regarding training and the employed neural network architecture, see Appendix~\ref{apx:anre-lensing}). In Figure~\ref{fig:corner}, we compare the posterior samples obtained from the two models using our slice-based nested sampler presented in Section~\ref{subsec:anre-ns}. It is clear that, for this application and simulation budget, autoregressive \gls*{nre} performs significantly better than \gls*{nre}, which is not able to properly model the joint macro-model parameter distribution.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.8\linewidth]{TikZ/truncation_blocks.pdf}
+	\caption{Prior truncation strategies. \emph{Left:} With a parameter-wise truncation strategy, each parameter gets individually constrained with boxes. \emph{Right:} Using a parameter block-wise truncation strategy, we divide the parameter space in blocks (lensing macro-model parameters $\interest_\mathrm{macro}$ and subhalo parameters $\interest_\mathrm{sub}$), depending on what dominates the data variance, and which parameters are most correlated. During sequential inference, we account for correlations between parameters in the same block through correlated truncation.}
+	\label{fig:block}
+\end{figure}
+
+We then sample correlated constrained prior samples with our slice-based nested sampler. By modeling and exploiting the intricate correlations between lens light, source light, and lens parameters, instead of using a parameter-wise truncation strategy, we are able to achieve a much lower data variance. In Figure~\ref{fig:targeted_data}, we display examples of training data. The simulations in the first row are drawn from the full initial prior. In the intermediate row, we used macro-model parameters drawn using the box truncation scheme. Finally, the simulations presented in the last row use the slice-based nested sampler to sample the macro-model parameters from the high-dimensional constrained prior, using the autoregressive model.
+
+\begin{figure}
+\centering
+\begin{tikzpicture}
+  \node (img)  {\includegraphics[width=0.7\linewidth]{ANRE-targeted.png}};
+  \node[left=of img, node distance=0.5cm, text width=1cm, yshift=+1.5cm, anchor=center] {Full prior};
+  \node[left=of img, node distance=0.5cm, text width=1cm, anchor=center] {Box\\ truncation};
+  \node[left=of img, node distance=0.5cm, text width=1cm, yshift=-1.5cm, anchor=center] {Correlated\\ truncation};
+ \end{tikzpicture}
+\caption{Targeted training data. The simulations in the first row are drawn from the full initial prior, described in Table~\ref{tab:anre-lensing-params}. In the intermediate row, we show simulations used for the last round of training of the 1-dimensional marginal ratio estimators, where the macro-model parameters were drawn from the most constrained hyper-rectangular box prior. In the last row, the macro-model parameters were sampled from the high-dimensional constrained prior with the slice-based nested sampler. The images in the second and last row are plotted in the same color scale, whereas the ones in the first row are allowed to vary for visualization purposes since they exhibit a larger variance.
+}
+\label{fig:targeted_data}
+\end{figure}
+
+Having reduced the macro-model parameters training data variance, we are then able to focus on substructure parameter inference, for which the results are shown in Figure~\ref{fig:corner}. These results were obtained with two sequential rounds of inference using a correlated truncation scheme, as first explained in Section~\ref{subsec:tmnre-t}. In contrast, given the initial fixed simulation budget, we were not able to constrain the subhalo parameter in our target observation with the data variance displayed by simulations using only box truncation. 
+
+
+\section{Discussion and conclusions} \label{sec:anre-conclusion}
+
+ The motivation for the \gls*{sbi} method development presented in this work comes from the data analysis and statistics challenges facing the fields of astrophysics and cosmology in light of high quality data from current and future experiments \cite{EUCLID:2011zbd, Gardner:2006ky,LSSTDarkEnergyScience:2012kar, Neichel:2018aa, Prusti:2016aa, Lazio:2009aa, Knodlseder:2020onx}. In this work, we have focused on one specific \gls*{sbi} algorithm, \gls*{tmnre}, and advanced its potential with the introduction of two new components:
+\begin{enumerate}[a)]
+    \item \emph{Autoregressive \gls*{nre}}, presented in Section~\ref{subsec:anre-anre}, estimates multi-dimensional (marginal) posteriors by effectively computing $d$ 1-dimensional conditional ratios instead of a $d$-dimensional joint one (see Equation~\eqref{eq:anre-autoregressive}). This way of approaching high-dimensional distribution estimation through an autoregressive scheme has been motivated by its proven scaling potential in other \gls*{sbi} techniques \cite{Germain:2015yft, Uria:2016aa, Papamakarios:2017tec}. We release a publicly available implementation of the autoregressive model in the \gls*{tmnre} package \texttt{swyft}\footnote{\url{https://github.com/undark-lab/swyft}}.
+    \item Our \emph{slice-based nested sampling} implementation, presented in Section~\ref{subsec:anre-ns}, offers vectorized evaluations of the natively GPU-based ratio estimator and introduces a convergence criterion related to posterior mass. The latter is essential for sequential inference applications since it allows one to define the truncation region in Equation~\eqref{eq:gamma_r}. The sampler choice naturally comes from the realisation that nested sampling techniques provide a tool to efficiently sample not only from a multi-dimensional posterior, but also natively from a constrained prior. Our slice sampler implementation is available in the package \texttt{torchns}\footnote{\url{https://github.com/undark-lab/torchns}}.
+\end{enumerate}
+We have demonstrated their application in three case studies presented in Section~\ref{sec:anre-experiments}. Firstly, we tested the performance of the autoregressive ratio model against the non-autoregressive one in a toy example. The main results, for different simulation budgets and dimensionality, are presented in Figure~\ref{fig:toy}. Secondly, we explored how variable ordering impacts the autoregressive model in a stellar streams analysis. We have found that a non-optimal variable ordering does have an impact, but does not severely penalise the overall inference result in our specific application, as shown in Figure~\ref{fig:streams_loss}. Lastly, we investigated the potential of a correlated truncation scheme in a proof-of-concept application to substructure searches in a strong gravitational lensing image. The main outcomes are exhibited in Figs.~\ref{fig:corner} and~\ref{fig:targeted_data}: in particular, given our fixed simulation budget, the non-autoregressive model is not able to estimate the macro-model parameter joint distribution, and only through correlated prior truncation are we able to constrain the subhalo parameters.
+
+\vspace{10pt}
+ \emph{Outlook.} There are two aspects to consider as far as outlook is concerned for our method development. The first concerns the known limitations of the autoregressive modeling and the nested sampling techniques. The second is more general, and considers the analysis settings in which this approach may be useful.
+
+As discussed above, one of the potential limitations of autoregressive modeling is its sensitivity to parameter orderings. Although we investigated this in the context of stellar streams in Section~\ref{subsec:anre-stream}, and found that the effect was minimal, it is possible that this is model dependent. As such, to extend the method, it would be interesting to develop techniques to derive an (approximately) optimal ordering of the parameters, \eg~by estimating the strength of correlations between various parameter sets. 
+
+On the nested sampling side, known limitations include the fact that it becomes very costly in terms of the required number of network evaluations for high dimensional parameter spaces, say $d \gtrsim 30$ (for a discussion see, \eg, Ref.~\cite{Buchner:2021kpm}). As such, it will be interesting to further investigate methods that exploit gradient information and scale better to high dimensions, such as the proximal nested sampling technique proposed in Ref.~\cite{Cai:2002aa}. Moreover, our current implementation of the slice sampler does not include clustering detectors (see \eg~Ref.~\cite{Feroz:2007kg}), which makes it inefficient for multi-modal posteriors.
+
+More generally, we believe the method we have developed could be useful in the following type of scenario: suppose that a part of the parameter space dominates the data variance, but is not the one that we are ultimately most interested in performing inference on. Using traditional methods, there are typically two approaches: a) solve the full joint analysis problem for all parameters, but face significant computational challenges, or b) analyse the nuisance parameters separately, and then fix them to some form of best-fit value to use in the rest of the analysis, at the cost of neglecting their uncertainties. For example, as briefly mentioned in Section~\ref{subsec:lensing}, this is exactly the scenario in standard strong gravitational lensing analyses where the lens light gets subtracted assuming the best-fit value, before analysing the lensed emission.
+
+With the method developed in this work, however, there is an alternative approach available. In particular, as explained in Section~\ref{subsec:tmnre-t}, the fact that prior truncation composes well with marginalisation allows us to consistently combine different analysis strategies that target distinct parts, or ``blocks", of the model into a coherent ``inference assembly". This exact procedure was exemplified in Section~\ref{subsec:lensing}, where we first reduced training data variance by truncating the lens and lensed source parameters, and then performed sequential inference on our parameters of interest, the ones pertaining the substructure.
+
+In conclusion, this approach can be relevant for many different cosmological and astrophysical applications, where the analysis would be carried out simultaneously on different components of the systems, \eg~parameters of interest, foregrounds, backgrounds, nuisance parameters, instrumentation parameters \textit{etc}. Ultimately, this will allow us to flexibly combine different inference strategies in order to draw coherent and consistent conclusions based on the full model and all the data.
+
+%\section*{Acknowledgements}
+%
+%We thank Will Handley and Kilian Scheutwinkel for useful discussions. This work is part of a project that has received funding from the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation program (Grant agreement No. 864035 -- UnDark). JA is supported through the research program ``The Hidden Universe of Weakly Interacting Particles" with project number 680.92.18.03 (NWO Vrije Programma), which is partly financed by the Nederlandse Organisatie voor Wetenschappelijk Onderzoek (Dutch Research Council). 
+%This work was carried out on the Snellius Compute Cluster at SURFsara. We acknowledge the use of the \texttt{python} \cite{python} modules, \texttt{matplotlib} \cite{Hunter:2007ouj}, \texttt{numpy} \cite{Harris:2020xlr},  \texttt{scipy} \cite{Virtanen:2019joe}, \texttt{AstroPy} \cite{Astropy:2013muo}, \texttt{PyTorch} \cite{pytorch}, \texttt{tqdm} \cite{tqdm}, and \texttt{jupyter} \cite{jupyter}.
+
+
+%%%%%%%%%%%%%%%%% APPENDICES %%%%%%%%%%%%%%%%%%%%%
+
+\begin{subappendices}
+
+\section{Another formulation} \label{apx:anre-anre}
+
+ The autoregressive model presented in Section~\ref{subsec:anre-anre} can be also written with a single network that can estimate both components. In order to do this, we introduce an auxiliary variable $c = -1, 1$.  We then consider the ratio
+\begin{equation}
+    r(\theta_i; \data, c, \interest_{1:i-1})
+    =\frac
+    {
+    p'(\theta_i \mid \data, c, \interest_{1:i-1})
+    }{
+    p(\theta_i)
+    %\mid \data, c, \interest_{1:i-1})
+    }
+\end{equation}
+The distribution of our auxiliary model is now given by
+\begin{equation}
+	\theta_i, \data, c, \interest_{1:i-1} \sim p'(\data , c, \theta_i, \interest_{1:i-1})\equiv p'(\data \mid c, \theta_i, \interest_{1:i-1})p(c) p(\interest_{1:i})\;,
+\end{equation}
+where we make use of the definitions
+$p'(\data \mid c = -1, \theta_i, \interest_{1:i-1}) \equiv p(\data)$  and
+$p'(\data \mid c = 1, \theta_i, \interest_{1:i-1}) \equiv
+p(\data \mid \theta_i, \interest_{1:i-1})$.
+
+Once the above ratio estimator is trained, we can obtain the desired conditional posterior-to-conditional prior ratio by using
+\begin{equation}
+\frac{
+p(\theta_i \mid \data, \interest_{1:i-1})
+}{
+p(\theta_i \mid \interest_{1:i-1})
+}
+\approx
+\frac{
+r(\theta_i ; \data, c = +1, \interest_{1:i-1})
+}{
+r(\theta_i ; \data, c = -1, \interest_{1:i-1})
+}\;.
+\end{equation}
+
+The advantage of this formulation is that it reduces the number of networks to train by a factor of two, which should correspondingly reduce GPU memory requirements and training time. A potential downside of this approach is that the network capacity has to be high enough in order to efficiently learn both posterior and prior approximations at the same time. We will leave a quantitative comparison between different methods and network architectures to future work.
+
+
+\section{Multivariate Gaussian experiment}
+\label{apx:anre-toy}
+ In Figure~\ref{fig:toy_corner}, we show the agreement between the analytical and estimated posteriors for the \gls*{nre} and ANRE methods applied to the toy problem described in \autoref{toy}. We see that across all $10$ parameters the autoregressive model achieves almost perfect agreement with the analytic result.
+
+In order to check the impact of the autoregressive ordering in this Multivariate Gaussian toy example we have conducted an additional test for $10$ dimensions. For this test, we use a likelihood with fixed covariance $\mathbf{\Sigma}$, which has correlation scales of $0.1$ for the off-diagonal entries, and varying diagonal correlation scales, ranging from $0.1$ to $0.55$ in $0.05$ steps. We have run our autoregressive model for four different variable orderings: from most constrained to least, from least constrained to most, and two random orderings. The results shown in Figure~\ref{fig:toy_ordering} demonstrate that the autoregressive ordering does not have an impact in this case.
+
+\begin{table}
+    \centering
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{l c c c c r}
+        \hline
+        Parameter & True value & Initial prior  \\
+        \hline
+        $t_\mathrm{age}\,\mathrm{[Myr]}$ & 3000 & $\mathcal{U}(2583, 3647)$ \\
+        $\lambda_\mathrm{rel}$ & 1.405 & $\mathcal{U}(0.13, 2.00)$ \\
+        $\lambda_\mathrm{match}$ & 1.846 & $\mathcal{U}(0.31, 2.00)$ \\
+        $\xi_0$ & 0.001 & $\mathcal{U}(0.0001,0.01)$ \\
+        $\alpha$ & 20.9 & $\mathcal{U}(10.0, 30.0)$ \\
+        $r_h \, \mathrm{[pc]}$ & 0.001 & $\mathcal{U}(0.0001, 0.01)$ \\
+        $\bar{m}\,\mathrm{[M}_\odot\mathrm{]}$ & 3 & $\mathcal{U}(1.0, 20.0)$ \\
+        $\log(M_\mathrm{sat}/\mathrm{M}_\odot)$ & 4.05 & $\mathcal{U}(3.3, 4.5)$ \\
+        $\sigma_v \,\mathrm{[km/s]}$ & 1.1 & $\mathcal{U}(0.96, 1.32)$ \\
+        $x_c\,\mathrm{[kpc]}$ & 11.8 & $\mathcal{U}(117, 119)$ \\
+        $y_c\,\mathrm{[kpc]}$ & 0.79 & $\mathcal{U}(0.6, 1.1)$ \\
+        $z_c\,\mathrm{[kpc]}$ & 6.4 & $\mathcal{U}(6.32, 6.54)$ \\
+        $v_{x,c}\,\mathrm{[km/s]}$ & 109.5 & $\mathcal{U}(106.8, 113.7)$ \\
+        $v_{y,c}\,\mathrm{[km/s]}$ & -254.5 & $\mathcal{U}(-256, -251)$ \\
+        $v_{z,c}\,\mathrm{[km/s]}$ & -90.3 & $\mathcal{U}(-93.3,-84.6)$ \\
+        $p_\mathrm{near}$ & 0.5 & $\mathcal{U}(0.34, 0.72)$ \\
+        \hline
+    \end{tabular}
+    \caption{True parameter values and priors used in the \gls*{tmnre} inference round for the stellar streams example. Note that our prior choices are taken from the final round of inference of Ref.~\protect\cite{Alvey:2023pkx} so as to test the autoregressive model in a final round of precision inference through active learning.}
+    \label{tab:anre-streams-params}
+\end{table}
+
+\begin{figure*}
+\centering
+\includegraphics[width=\linewidth]{ANRE-toy_corner.png}
+\caption{
+ Multivariate Gaussian toy example results. Corner plot highlighting the agreement between the analytic and estimated posteriors for the $d = 10$ Gaussian model described in \autoref{toy}.}
+\label{fig:toy_corner}
+\end{figure*}
+
+\begin{figure*}
+\centering
+\includegraphics[width=\linewidth]{ANRE-toy_ordering.png}
+\caption{
+ Multivariate Gaussian toy example results. Corner plot highlighting the agreement between the analytic and estimated posteriors for the $d = 10$ Gaussian model described in \autoref{toy} and Appendix~\ref{apx:anre-toy}. For the estimated posteriors we have used four different orderings, as described in Appendix~\ref{apx:anre-toy}.}
+\label{fig:toy_ordering}
+\end{figure*}
+
+\section{Stellar streams experiment}
+\label{apx:anre-streams}
+
+ In this short appendix we present the technical details relevant for the stellar streams experiment presented in Section~\ref{subsec:anre-stream}. There are a number of things directly analogous to the implementation described in Ref.~\cite{Alvey:2023pkx}. In particular, we use the stellar streams simulator, \texttt{sstrax} \cite{sstrax}, developed in this reference, as well as the \texttt{swyft}-based inference code \texttt{albatross} \cite{albatross}. In addition, we consider the same set of model parameters (described in Table~\ref{tab:anre-streams-params} and in detail in Ref.~\cite{Alvey:2023pkx}), the same injection parameters to generate the observation, and the same binning/observation scheme. The key difference with respect to this reference is in the inference network used. In particular, we replace the $1$-dimensional ratio estimation across all model parameters with the autoregressive method described in this work to model their joint distribution. In terms of network training details, we use the Adam optimiser with an initial learning rate of $10^{-6}$. In addition, we use a batch size of $512$ and a simulation budget of $3\times 10^5$ training examples. Finally, we use the following orderings (Order A and Order B referenced in the main text) for training the autoregressive ratio estimator: [$\sigma_v$, $x_c$, $y_c$, $z_c$, $v_{x,c}$, $v_{y, c}$, $v_{z, c}$, $t_\mathrm{age}$, $p_\mathrm{near}$, $\lambda_\mathrm{rel}$, $\lambda_{match}$, $\xi_0$, $\alpha$, $r_h$, $\bar{m}$, $\log(M_\mathrm{sat}/\mathrm{M}_\odot)$] (Order A), and [$\xi_0$, $\lambda_{match}$, $\lambda_\mathrm{rel}$, $\alpha$, $r_h$, $\bar{m}$, $\log(M_\mathrm{sat}/\mathrm{M}_\odot)$, $t_\mathrm{age}$, $\sigma_v$, $x_c$, $y_c$, $z_c$, $v_{x,c}$, $v_{y, c}$, $v_{z, c}$, $p_\mathrm{near}$] (Order B).
+
+In Figure~\ref{fig:corner_streams_2}, we also show the results of a test with two additional random orderings. Specifically, the orderings shown are [$\alpha$, $\log(M_\mathrm{sat}/\mathrm{M}_\odot)$, $\lambda_\mathrm{rel}$, $\xi_0$, $v_{x,c}$, $\sigma_v$, $v_{z,c}$, $\bar{m}$, $t_\mathrm{age}$, $r_h$, $x_c$, $z_c$, $p_\mathrm{near}$, $\lambda_\mathrm{match}$, $y_c$, $v_{y,c}$] (first random order) and [$v_{z,c}$, $p_\mathrm{near}$, $\bar{m}$, $\sigma_v$, $v_{y,c}$, $\alpha$, $v_{x, c}$, $t_\mathrm{age}$, $\lambda_{\mathrm{rel}}$, $z_c$, $\lambda_\mathrm{match}$, $y_c$, $x_c$, $\xi_0$, $r_h$, $\log(M_\mathrm{sat}/\mathrm{M}_\odot)$] (second random order).
+
+Furthermore, we performed an additional test in order to check when the loss for order B reaches the one for order A in Figure~\ref{fig:streams_loss} (see main text for definitions), by gradually increasing the simulation budget.
+Figure~\ref{fig:anre-training} shows the loss for order B as a function of epochs, for different sizes of training dataset, with the biggest one (100\% in the figure) containing $6\times10^5$ simulations. From Figure~\ref{fig:anre-training}, we can see that the loss for order B reaches a plateau value of -6.1 (the one of the loss for order A in Figure~\ref{fig:streams_loss} when training on $3\times10^5$ simulations) for approximately between 60\% to 70\% of the total $6\times10^5$ simulations, so roughly for $4\times10^5$ simulations. In this specific example, this experimental check shows that a network trained with order B needs 25\% more simulations to plateau at the same loss as one trained for order A. This test further confirms our observation that the ‘penalty’ for choosing a non-optimal ordering is not severe, and can be easily circumvented, for example as in this case, by increasing the simulation budget. However, the important take away message is that the simulation computational budget can be reduced by choosing an optimal ordering. 
+
+\begin{figure*}
+    \includegraphics[width=\linewidth]{ANRE-corner_streams_2.png}
+    \caption{Additional checks of the variable ordering conclusions given in Section~\ref{subsec:anre-stream}. Here, we overlay the results presented in the main text with inference results given two other random orderings.}
+    \label{fig:corner_streams_2}
+\end{figure*}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\linewidth]{ANRE-loss_test.png}
+    \caption{Training loss for order B (see Figure~\ref{fig:corner_streams_2} and Section~\ref{subsec:anre-stream} and Figure~\ref{fig:streams_loss} in the main text) as a function of epochs for different simulation budgets, with a maximum budget of $6\times 10^5$ simulations. The validation loss for each case is shown as a dashed line in the figure.}
+    \label{fig:anre-training}
+\end{figure}
+
+\section{Gravitational lensing experiment}
+\label{apx:anre-lensing}
+
+ In this appendix we provide a more detailed account of the model adopted to generate the strong lensing simulations, the training details, and the employed neural networks to obtain the results presented in Section~\ref{subsec:lensing}.
+
+\subsection{Simulator}
+
+\begin{table}
+    \centering
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{c c c c c c c}
+        \hline
+        Component & Parameter & True value & Initial prior  \\
+        \hline
+        \parbox[t]{1mm}{\multirow{3}{*}{\rotatebox[origin=c]{90}{Subhalo}}}
+        & $x_\mathrm{sub}\, ['']$ & -1.2 & $\mathcal{U}(-2.5, 2.5)$ \\
+        & $y_\mathrm{sub}\, ['']$ & 1 & $\mathcal{U}(-2.5, 2.5)$ \\
+        & $\log_{10} m_\mathrm{sub}\, [M_\odot]$ & $9.5$ & $\mathcal{U}(8, 11)$ \\
+        \hline
+        \parbox[t]{1mm}{\multirow{6}{*}{\rotatebox[origin=c]{90}{SPLE}}}
+        & $x_\mathrm{lens}\, ['']$ & 0.1 & $\mathcal{U}(-0.2, 0.2)$  \\
+        & $y_\mathrm{lens}\, ['']$ & 0.05 & $\mathcal{U}(-0.2, 0.2)$ \\
+        & $\varphi_\mathrm{lens} \, [^\circ]$ & 0.3 & $\mathcal{U}(0, 1.5)$ \\
+        & $q_\mathrm{lens}$ & 0.89 & $\mathcal{U}(0.1, 1)$ \\
+        & $\gamma$ & 2 & $\mathcal{U}(1.8, 2.2)$ \\
+        & $r_\mathrm{ein}\, ['']$ & 1.5 & $\mathcal{U}(1, 2)$ \\
+        \hline
+        \parbox[t]{1mm}{\multirow{2}{*}{\rotatebox[origin=c]{90}{Shear}}}
+        & $\gamma_1$ & 0.01 & $\mathcal{U}(-0.05, 0.05)$  \\
+        & $\gamma_2$ & -0.02 & $\mathcal{U}(-0.05, 0.05)$ \\
+        \hline
+        \parbox[t]{1mm}{\multirow{7}{*}{\rotatebox[origin=c]{90}{Lens light}}}
+        & $x_\mathrm{light}\, ['']$ & 0.03 & $\mathcal{U}(-0.1, 0.1)$ \\
+        & $y_\mathrm{light}\, ['']$ & 0.02 & $\mathcal{U}(-0.1, 0.1)$ \\
+        & $\varphi_\mathrm{light} \, [^\circ]$ & 0.3 & $\mathcal{U}(0., 1.5)$ \\
+        & $q_\mathrm{light}$ & 0.7 & $\mathcal{U}(0.1, 1)$ \\
+        & $n$ & 1.58 & $\mathcal{U}(0.1, 4)$ \\
+        & $r_e\, ['']$ & 2.1 & $\mathcal{U}(0.1, 3)$ \\
+        & $I_e$ & 1.2 & $\mathcal{U}(0, 4)$ \\
+        \hline
+        \parbox[t]{1mm}{\multirow{7}{*}{\rotatebox[origin=c]{90}{Source light}}}
+        & $x_\mathrm{src}\, ['']$ & 0.02 & $\mathcal{U}(-0.2, 0.2)$ \\
+        & $y_\mathrm{src}\, ['']$ & 0.08 & $\mathcal{U}(-0.2, 0.2)$ \\
+        & $\varphi_\mathrm{src} \, [^\circ]$ & 0.7 & $\mathcal{U}(0., 1.5)$ \\
+        & $q_\mathrm{src}$ & 0.8 & $\mathcal{U}(0.1, 1)$ \\
+        & $n$ & 1.5 & $\mathcal{U}(0.1, 4)$ \\
+        & $r_e\, ['']$ & 1.4 & $\mathcal{U}(0.1, 3)$ \\
+        & $I_e$ & 2.5 & $\mathcal{U}(0, 4)$ \\
+        \hline
+    \end{tabular}
+    \caption{True subhalo and macro-model parameter values and priors used in the first \gls*{tmnre} inference round in the strong gravitational lensing application. This prior generates images with variance displayed in the first row of Figure~\ref{fig:targeted_data}.}
+    \label{tab:anre-lensing-params}
+\end{table}
+
+We use the simulator adopted in Refs.~\cite{Coogan:2020yux, Coogan:2022cky, Montel:2022fhv}, and described in Section~\ref{sec:sl-model} to generate strong lensing image observations. To model the lens light and the source light flux we use a Sèrsic profile \cite{Sersic:1963aa}, parameterized by seven variables: position, position angle, axis ratio, index, effective radius, and surface intensity. We adopt a singular power-law ellipsoid (SPLE) \cite{Suyu:2008zp} for the main lens mass distribution, with a total of six parameters: position on the lens plane, position angle, axis ratio, slope, and Einstein radius. We consider two additional parameters to model the external shear. In total, there are twenty-two macro-model parameters. To model the density profile of the dark matter subhalo we adopt the smoothly truncated universal Navarro-Frenk-White mass density profile from Ref.~\cite{Baltz:2007vq}. We fix the truncation radius to $\tau=6$. The subhalo is then described by three parameters: virial mass $m_\mathrm{sub}$, and position on the lens plane $(x_\mathrm{sub}, y_\mathrm{sub})$. We adopt the concentration-mass relation from \cite{Correa:2015dva}. We show each parameter prior and the value with which we have generated our mock target observation in Table~\ref{tab:anre-lensing-params}.
+
+Given this model, we generate $100 \times 100$ pixel$^2$ images with a resolution of $0.05"$ per pixel side, for a total field of view of $5" \times 5"$ in an image. The instrumental effects include a Gaussian point spread function with a full width at half maximum of $0.05"$ and Gaussian noise. We choose redshift $z_\mathrm{lens}=0.9$ for the lens and $z_\mathrm{source}=2$ for the source.
+
+\subsection{Training details and neural networks}
+
+\begin{table}
+    \centering
+    \begin{tabular}{c}
+        \hline
+        \texttt{Conv2d(1, 4, 3, 2, 1, bias=True)} \\
+        \texttt{BatchNorm2d(4)} \\
+        \texttt{ReLU} \\
+        \hline
+        \texttt{Conv2d(4, 8, 5, 2, 1, bias=True)} \\
+        \texttt{BatchNorm2d(8)} \\
+        \texttt{ReLU} \\
+        \hline
+        \texttt{Conv2d(8, 16, 5, 2, 1, bias=True)} \\
+        \texttt{BatchNorm2d(16)} \\
+        \texttt{ReLU} \\
+        \hline
+        \texttt{Conv2d(16, 32, 5, 2, 1, bias=True)} \\
+        \texttt{BatchNorm2d(32)} \\
+        \texttt{ReLU} \\
+        \hline
+        \texttt{Flatten()} \\
+        \texttt{LazyLinear(256)} \\
+        \hline
+    \end{tabular}
+    \caption{The convolutional compression network used in the macro-model parameter ratio estimator. The notation is taken from \texttt{PyTorch}: the arguments to \texttt{Conv2d} are the number of input channels, output channels, kernel size, stride and padding, respectively. The horizontal lines highlight where the number of channels changes. Note that we standardize the images before providing them to the convolutional networks.}
+    \label{tab:anre-macro}
+\end{table}
+%
+\begin{table}
+    \centering
+    \begin{tabular}{r l}
+        \hline
+        \texttt{image\_size} & \texttt{100} \\
+        \texttt{n\_channels} & \texttt{1} \\
+        \texttt{n\_classes} & \texttt{8}\\
+        \texttt{s} & \texttt{1} \\
+        \hline
+    \end{tabular}
+    \caption{The details of the UNet network used in the subhalo. We use the implementation from \url{https://github.com/milesial/Pytorch-UNet}, with arguments given in the table. The UNet output is then sampled at the positions of the subhalo contrastive examples to bring it to a lower dimensionality, and this feature vector is passed to the binary classifier.
+    }
+    \label{tab:anre-UNet}
+\end{table}
+
+ For all tasks we use the same general ratio estimator architecture. It consists of an initial compression network that maps the high-dimensional lensing observation $\data$ into a feature vector. This feature vector is concatenated to the parameters we want to infer. The vector is then passed to  \texttt{swyft} binary classifier which outputs an estimate of the likelihood-to-evidence ratio. The compressor architecture for the macro-model parameters is given in Table~\ref{tab:anre-macro}. This same compression is used when estimating 1-dimensional marginal ratio estimators, or the joint one with \gls*{nre} or autoregressive \gls*{nre}, as explained in Section~\ref{subsec:lensing}. The compressor architecture for the subhalo parameters is given in Table~\ref{tab:anre-UNet}.
+
+We used the Adam optimizer with an initial learning rate of $10^{-3}$ for the macro-model ratio estimator and $8 \times 10^{-5}$ for the subhalo ratio estimator, and a batch size of $64$. The learning rate was reduced by a factor of $0.1$ whenever the validation loss plateaued for $2$ epochs. Training was run until the validation loss stopped improving for more than $5$ epochs. The results shown in Figure~\ref{fig:corner} are obtained using $2\times 10^5$ training samples. To run the inference, we use the model weights obtained at the lowest validation loss curve point.
+
+\end{subappendices}

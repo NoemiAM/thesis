@@ -1,0 +1,40 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\input{../symbols}
+\input{../colors}
+
+
+\begin{document}
+
+\begin{tikzpicture}
+
+%	\draw[rounded corners, draw=white, fill=blue!30, opacity=0.3] (0, 2.7) rectangle (\linewidth,-2.6);
+%    \node[text width=.15\linewidth,  text centered] (prior) at (.1\linewidth,2) {Prior \\ $\param\sim p(\param)$};
+%    \node[text width=.35\linewidth,  text centered] (sim) at (.515\linewidth,2) {Simulator \\ $\data\sim p(\data\mid\param) = p(\data\mid\interest, \nuisance)$};
+%    \node[text width=.32\linewidth,text centered] (infer) at (0.83\linewidth,0) {Inference \\ $d_{\bm\Phi}(\data,\interest)$};
+%    \node[text width=.18\linewidth, text centered] (obs0) at (.515\linewidth,0) {Observation \\ $\data_0$};
+%    \node[text width=.32\linewidth,  text centered] (estim) at (.515\linewidth,-2) {Estimation \\ $\hat p(\interest\mid\data_0)$};
+%    \node[text width=.28\linewidth, text centered] (cp) at (.2\linewidth,0) {Constrained \\ proposal distribution \\ $\interest \sim  \tilde{p}(\interest)$};
+%    \draw[->, line width=0.2mm, draw=black] (prior) to (sim);
+%    \draw[->, line width=0.2mm, draw=black] (sim) to  [out=0,in=90] (infer);
+%    \draw[->, line width=0.2mm, draw=black] (infer) to  [out=270,in=0] (estim);
+%    \draw[->, line width=0.2mm, draw=black] (obs0) to  (estim);
+%    \draw[->, line width=0.2mm, draw=black] (estim) to  [out=180,in=270] (cp);
+%    \draw[->, line width=0.2mm, draw=black] (cp) to  [out=90,in=180] (sim);
+    
+    \draw[rounded corners, draw=white, fill=blue!30, opacity=0.3] (0, 2.7) rectangle (\linewidth,-2.6);
+    \node[text width=.15\linewidth,  text centered] (prior) at (.1\linewidth,2) {Prior \\ $\param\sim p(\param)$};
+    \node[text width=.35\linewidth,  text centered] (sim) at (.515\linewidth,2) {Simulator \\ $\data\sim p(\data\mid\param) = p(\data\mid\interest, \nuisance)$};
+    \node[text width=.32\linewidth,text centered] (infer) at (0.83\linewidth,0) {Inference \\ $d_{\bm\Phi}(\data,\interest)= \sigma\left[\log \hat{r}(\interest;\data)\right]$};
+    \node[text width=.18\linewidth, text centered] (obs0) at (.515\linewidth,0) {Observation \\ $\data_0$};
+    \node[text width=.32\linewidth,  text centered] (estim) at (.515\linewidth,-2) {Estimation \\ $\hat p(\interest\mid\data_0)=\hat{r}(\interest;\data_0)p(\interest)$};
+    \node[text width=.28\linewidth, text centered] (cp) at (.2\linewidth,0) {Truncated prior \\ $\interest \sim  p_{\Gamma}(\interest)$};
+    \draw[->, line width=0.2mm, draw=black] (prior) to (sim);
+    \draw[->, line width=0.2mm, draw=black] (sim) to  [out=0,in=90] (infer);
+    \draw[->, line width=0.2mm, draw=black] (infer) to  [out=270,in=0] (estim);
+    \draw[->, line width=0.2mm, draw=black] (obs0) to  (estim);
+    \draw[->, line width=0.2mm, draw=black] (estim) to  [out=180,in=270] (cp);
+    \draw[->, line width=0.2mm, draw=black] (cp) to  [out=90,in=180] (sim);
+\end{tikzpicture}
+\end{document}

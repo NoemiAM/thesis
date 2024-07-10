@@ -1,0 +1,133 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepackage{eqparbox}
+\usetikzlibrary{patterns}
+\input{../../symbols}
+\input{../../colors}
+
+
+\begin{document}
+
+\newbox\eqnodebox
+\tikzset{lequal size/.style={execute at begin
+    node={\setbox\eqnodebox=\hbox\bgroup},
+    execute at end node={\egroup\eqmakebox[#1][l]{\copy\eqnodebox}}},
+    lequal size/.default=A,}
+
+\begin{tikzpicture}[pics/legend entry/.style={code={%   
+        \draw[pic actions] (-0.3,0.25) -- (0.,0.25);}}]
+    % Define the width and height of each rectangle
+    \pgfmathsetmacro{\sectionWidth}{3.5} % Adjust as needed
+    \pgfmathsetmacro{\sectionHeight}{3} % Adjust as needed
+    
+    \pgfmathsetmacro{\off}{0.3}
+    
+    % Draw the first section
+    \draw[thick, blue] (-1,0) -- (-1,2);
+    \draw[thick, blue] (-1,2) -- (\sectionWidth-1, 2);
+    \draw[thick, blue] (\sectionWidth-1,2) -- (\sectionWidth-1,0);  
+    \def\gaussianfunction{\sectionHeight * exp(-0.5 * ((\x-(\sectionWidth/2-1))/0.2)^2)}
+    \draw[thick, lightblue, fill=lightblue!30] plot[domain=-1-\off:\sectionWidth-1-\off, samples=1000] (\x+\off, { \gaussianfunction });  
+    \matrix [above right] at (-1,2) {
+ 		\pic[blue]{legend entry}; &  \node[lequal size,font=\tiny] {$p(\interest)$}; \\
+ 		\pic[lightblue]{legend entry}; &  \node[lequal size,font=\tiny] {$p(\interest\mid\data)$}; \\
+	};   
+	 
+    \pgfmathsetmacro{\ratio}{0.6}
+    \pgfmathsetmacro{\sectionWidthh}{\ratio*\sectionWidth}
+    \pgfmathsetmacro{\offset}{(\sectionWidth-\sectionWidthh)/2}    
+    % Draw the second section
+    \draw[thick, blue] (\sectionWidth,0) -- (\sectionWidth,2);
+    \draw[thick, blue] (\sectionWidth,2) -- (2*\sectionWidth, 2);
+    \draw[thick, blue] (2*\sectionWidth,2) -- (2*\sectionWidth,0); 
+    \draw[thick, blue] (\offset+\sectionWidth+\off,0) -- (\offset+\sectionWidth+\off,2);
+    \draw[thick, blue] (\offset+\sectionWidth+\off,2) -- (\sectionWidthh+\offset+\sectionWidth+\off, 2);
+    \draw[thick, blue] (\sectionWidthh+\offset+\sectionWidth+\off,2) -- (\sectionWidthh+\sectionWidth+\offset+\off,0); 
+    \draw[blue, pattern=north west lines, pattern color=blue] (\sectionWidth,0) rectangle (\offset+\sectionWidth+\off,2);
+    \draw[blue, pattern=north west lines, pattern color=blue] (\sectionWidthh+\offset+\sectionWidth+\off,0) rectangle (2*\sectionWidth,2);
+    \def\gaussianfunction{\sectionHeight * exp(-0.5 * ((\x-(\sectionWidth/2+\sectionWidth))/0.2)^2)}
+    \draw[thick, lightblue, fill=lightblue!30] plot[domain=\sectionWidth-\off:\sectionWidthh+\sectionWidth+2*\offset-\off, samples=1000] (\x+\off, { \gaussianfunction }); 
+    \matrix [above right] at (\sectionWidth,2) {
+ 		\pic[blue]{legend entry}; &  \node[lequal size,font=\tiny] {$p(\interest)$}; \\
+ 		\pic[lightblue]{legend entry}; &  \node[lequal size,font=\tiny] {$p(\interest\mid\data)$}; \\
+	}; 
+    
+    \pgfmathsetmacro{\ratio}{0.7}
+    \pgfmathsetmacro{\sectionWidthhh}{\ratio*\sectionWidth}
+    \pgfmathsetmacro{\offsett}{(\sectionWidth-\sectionWidthhh)/2}    
+    % Draw the third section
+    \draw[thick, blue, dashed] (1+2*\sectionWidth,0) -- (1+2*\sectionWidth,2);
+    \draw[thick, blue, dashed] (1+2*\sectionWidth,2) -- (3*\sectionWidth+1, 2);
+    \draw[thick, blue, dashed] (3*\sectionWidth+1,2) -- (3*\sectionWidth+1,0);
+    \draw[thick, blue] (\offset+2*\sectionWidth+1+\off,0) -- (\offset+2*\sectionWidth+1+\off,2);
+    \draw[thick, blue] (\offset+2*\sectionWidth+1+\off,2) -- (\sectionWidthh+\offset+2*\sectionWidth+1+\off, 2);
+    \draw[thick, blue] (\sectionWidthh+\offset+2*\sectionWidth+1+\off,2) -- (\sectionWidthh+2*\sectionWidth+1+\offset+\off,0);     
+    \def\gaussianfunction{\sectionHeight * exp(-0.5 * ((\x-(\sectionWidth/2+2*\sectionWidth+1))/0.2)^2)}
+    \draw[thick, lightblue, fill=lightblue!30] plot[domain=2*\sectionWidth+1-\off:\sectionWidthh+2*\offset+2*\sectionWidth+1-\off, samples=1000] (\x+\off, { \gaussianfunction });
+    \matrix [above right] at (1+2*\sectionWidth,2) {
+ 		\pic[dashed, blue]{legend entry}; &  \node[lequal size,font=\tiny] {$p(\interest)$}; \\
+		\pic[blue]{legend entry}; &  \node[lequal size,font=\tiny] {$p_\Gamma(\interest)$}; \\
+ 		\pic[lightblue]{legend entry}; &  \node[lequal size,font=\tiny] {$p(\interest\mid\data)$}; \\
+	}; 
+    
+\end{tikzpicture}
+
+%\begin{tikzpicture}
+%
+%    % Define the width and height of each rectangle
+%    \pgfmathsetmacro{\sectionWidth}{3.5} % Adjust as needed
+%    \pgfmathsetmacro{\sectionHeight}{3} % Adjust as needed
+%    
+%    % Draw the first section
+%    \draw[thick, blue] (-1,0) -- (-1,2);
+%    \draw[thick, blue] (-1,2) -- (\sectionWidth-1, 2);
+%    \draw[thick, blue] (\sectionWidth-1,2) -- (\sectionWidth-1,0);  
+%    \def\gaussianfunction{\sectionHeight * exp(-0.5 * ((\x-(\sectionWidth/2-1))/0.35)^2)}
+%    \draw[thick, lightblue] plot[domain=-1:\sectionWidth-1, samples=100] (\x, { \gaussianfunction });  
+%    
+%    \pgfmathsetmacro{\ratio}{0.7}
+%    \pgfmathsetmacro{\sectionWidthh}{\ratio*\sectionWidth}
+%    \pgfmathsetmacro{\offset}{(\sectionWidth-\sectionWidthh)/2}
+%%    \draw[thick] (-1+\offset, -0.5) -- (\sectionWidthh-1+\offset, -0.5);
+%%    \draw[thick] (-1+\offset, -0.3) -- (-1+\offset, -0.7);
+%%    \draw[thick] (\sectionWidthh-1+\offset, -0.3) -- (\sectionWidthh-1+\offset, -0.7);
+%
+%%    \draw[thick, red] (-1+\offset,2) -- (\sectionWidthh-1+\offset, 2);
+%%    \draw[thick, red] (-1+\offset,0) -- (-1+\offset,2);
+%%    \draw[thick, red] (-1+\offset,2) -- (\sectionWidthh-1+\offset, 2);
+%%    \draw[thick, red] (\sectionWidthh-1+\offset,2) -- (\sectionWidthh-1+\offset,0); 
+%    
+%    % Draw the second section
+%    \draw[thick, blue, dashed] (\sectionWidth,0) -- (\sectionWidth,2);
+%    \draw[thick, blue, dashed] (\sectionWidth,2) -- (2*\sectionWidth, 2);
+%    \draw[thick, blue, dashed] (2*\sectionWidth,2) -- (2*\sectionWidth,0); 
+%    \draw[thick, red] (\offset+\sectionWidth,0) -- (\offset+\sectionWidth,2);
+%    \draw[thick, red] (\offset+\sectionWidth,2) -- (\sectionWidthh+\offset+\sectionWidth, 2);
+%    \draw[thick, red] (\sectionWidthh+\offset+\sectionWidth,2) -- (\sectionWidthh+\sectionWidth+\offset,0); 
+%    \def\gaussianfunction{\sectionHeight * exp(-0.5 * ((\x-(\sectionWidth/2+\sectionWidth))/0.2)^2)}
+%    \draw[thick, red] plot[domain=\offset+\sectionWidth:\sectionWidthh+\sectionWidth+\offset, samples=100] (\x, { \gaussianfunction }); 
+%    
+%     \pgfmathsetmacro{\ratio}{0.7}
+%    \pgfmathsetmacro{\sectionWidthhh}{\ratio*\sectionWidth}
+%    \pgfmathsetmacro{\offsett}{(\sectionWidth-\sectionWidthhh)/2}
+%%    \draw[thick, green] (\sectionWidth+\offset+\offsett,0) -- (\sectionWidth+\offset+\offsett,2);
+%%    \draw[thick, green] (\sectionWidth+\offset+\offsett,2) -- (\sectionWidthhh+\sectionWidth+\offset-1+\offsett, 2);
+%%    \draw[thick, green] (\sectionWidthhh-1+\sectionWidth+\offset+\offsett,2) -- (\sectionWidthhh-1+\sectionWidth+\offset+\offsett,0); 
+%    
+%    % Draw the third section
+%    \draw[thick, blue, dashed] (1+2*\sectionWidth,0) -- (1+2*\sectionWidth,2);
+%    \draw[thick, blue, dashed] (1+2*\sectionWidth,2) -- (3*\sectionWidth+1, 2);
+%    \draw[thick, blue, dashed] (3*\sectionWidth+1,2) -- (3*\sectionWidth+1,0);
+%    \draw[thick, red, dashed] (\offset+2*\sectionWidth+1,0) -- (\offset+2*\sectionWidth+1,2);
+%    \draw[thick, red, dashed] (\offset+2*\sectionWidth+1,2) -- (\sectionWidthh+\offset+2*\sectionWidth+1, 2);
+%    \draw[thick, red, dashed] (\sectionWidthh+\offset+2*\sectionWidth+1,2) -- (\sectionWidthh+2*\sectionWidth+1+\offset,0);    
+%    \draw[thick, green] (2*\sectionWidth+1+\offset+\offsett,0) -- (2*\sectionWidth+1+\offset+\offsett,2);
+%    \draw[thick, green] (2*\sectionWidth+1+\offset+\offsett,2) -- (\sectionWidthhh+2*\sectionWidth+\offset+\offsett, 2);
+%    \draw[thick, green] (\sectionWidthhh+2*\sectionWidth+\offset+\offsett,2) -- (\sectionWidthhh+2*\sectionWidth+\offset+\offsett,0);   
+%    \def\gaussianfunction{\sectionHeight * exp(-0.5 * ((\x-(\sectionWidth/2+2*\sectionWidth+1))/0.1)^2)}
+%    \draw[thick, green] plot[domain=\offset+2*\sectionWidth+1:\sectionWidthh+\offset+2*\sectionWidth+1, samples=100] (\x, { \gaussianfunction });
+%    
+%\end{tikzpicture}
+
+\end{document}
