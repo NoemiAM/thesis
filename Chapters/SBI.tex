@@ -50,14 +50,15 @@ On the other hand, one key aspect of \gls*{sbi} algorithms in general is their a
 
 \section{Background: the landscape of simulation-based inference} \label{sec:sbi}
 
-In this section, we describe the developments and landscape of \gls*{sbi} algorithms. We begin by providing a brief overview of traditional implicit-likelihood methods for posterior inference, approximate bayesian computation and kernel density estimation (Section \ref{subsec:abc}). We then explain the different routes one can use to vastly accelerate and scale this process using neural networks. Lastly, we compare the various neural \gls*{sbi} algorithms by discussing their drawbacks and advantages (Section \ref{subsec:nsbi}). 
+In this section, we describe the developments and landscape of \gls*{sbi} algorithms. We begin in Section \ref{subsec:abc} by providing a brief overview of traditional implicit-likelihood methods for posterior inference, approximate bayesian computation \cite{Sisson:2018aa} and kernel density estimation \cite{diggle1984monte}. We then explain in Section \ref{subsec:nsbi} the different routes one can use to vastly accelerate and scale this process using neural networks \cite{Cranmer:2019eaq, Lueckmann:2021aa}. A comparison of the various neural \gls*{sbi} algorithms with a discussion about their drawbacks and advantages can be found later in Section \ref{sec:comparison}). 
 
 %Turning more towards the history and development of \gls*{sbi}, there are two common traditional approaches that use simulations to do statistical inference when the analytic form of the likelihood is intractable. 
 
 \subsection{Traditional \gls*{sbi}}  \label{subsec:abc}
 
-The first implicit-likelihood ideas date back to the 1980s. Particularly relevant for the initial development of this paradigm was statistician Donald Rubin's discussion about the use of frequency calculations for the interpretation of Bayesian statements \cite{rubin1984bayesianly}. Importantly, in these lectures he encouraged statisticians to not settle for analytically tractable models only, but to instead consider computational methods to estimate the posterior distribution of interest for a wider range of models. An outline of the most well-known traditional \gls*{sbi} algorithm, \emph{\gls*{abc}}, can be already found in Rubin's work \cite[Section 3.1]{rubin1984bayesianly}. 
+The first implicit-likelihood ideas date back to the 1980s. Particularly relevant for the initial development of this paradigm was statistician Donald Rubin's discussion about the use of frequency calculations for the interpretation of Bayesian statements \cite{rubin1984bayesianly}. Importantly, in these lectures he encouraged statisticians to not settle for analytically tractable models only, but to instead consider computational methods to estimate the posterior distribution of interest for a wider range of models. An outline of the most well-known traditional \gls*{sbi} algorithm, \gls*{abc}, can be already found in Rubin's work \cite[Section 3.1]{rubin1984bayesianly}. 
 
+\paragraph*{Approximate bayesian computation}
 It is worth exploring in more details the \gls*{abc} algorithm, since it will serve us as the classical analogue of the \gls*{sbi} technique mostly employed throughout this thesis (see Section~\ref{sec:tmnre}). For more detailed reviews see Refs.~\cite{marin2012approximate, Sisson:2018aa, Grazian:2019aa}. \Gls*{abc} is a rejection sampling algorithm where, given a prior $\param\sim p(\param)$ proposed samples $\data \sim p(\data\mid\param)$ from the forward model are compared to the target observed data $\data_0$ with a hand-crafted distance measure based on some low-dimensional summary statistics $s(\data)$, as for example
 \begin{equation}
     d(\data, \data_0)  = \mid\mid s(\data) - s(\data_0)\mid\mid\;.
@@ -71,47 +72,99 @@ Hence the posterior
 \end{equation}
 is guaranteed to converge to the true one for sufficient summary statistics and for $\epsilon \to 0$, $p_\text{ABC}(\param\mid\data) \xrightarrow{\epsilon \to 0} p(\param\mid\data)$. Whereas, when $\epsilon$ is non-zero, the approximate posterior is guaranteed to be broader than the true one, leading to conservative inference. 
 
-Interestingly, a physical implementation of \gls*{abc}-rejection scheme for a single parameter and a single observation was already constructed by Francis Galton in the late 1800s \cite[Figure 5]{stigler2010darwin}. The device is known today as the Galton board, and often used to demonstrate the central limit theorem \cite{galton1889natural}. Since Rubin's work, \gls*{abc} has been widely adopted in astrophysics and cosmology, including applications to, \eg, galaxy demographics \cite{cameron2012approximate}, galaxy–halo connection \cite{hahn2017approximate}, cosmology \cite{Akeret:2015uha}, galaxy clustering \cite{Ishida:2015wla}, type Ia supernovae \cite{Weyant:2012xe}, and cosmic rays \cite{bourriche2024beyond}.
+Interestingly, a physical implementation of \gls*{abc}-rejection scheme for a single parameter and a single observation was already constructed by Francis Galton in the late 1800s \cite[Figure 5]{stigler2010darwin}. The device is known today as the Galton board, and often used to demonstrate the central limit theorem \cite{galton1889natural}. Since Rubin's work, \gls*{abc} has been widely adopted in astrophysics and cosmology, including applications to, \eg, galaxy demographics \cite{cameron2012approximate}, galaxy–halo connection \cite{hahn2017approximate}, cosmology \cite{Akeret:2015uha, jennings2017astroabc}, galaxy clustering \cite{Ishida:2015wla}, type Ia supernovae \cite{Weyant:2012xe}, and cosmic rays \cite{bourriche2024beyond}.
 
+\paragraph*{Approximate frequentist computation}
 A second classical approach to \gls*{sbi} was also proposed in the 1980s by Diggle and Gratton \cite{diggle1984monte}. The approach was dubbed ``approximate frequentist computation" by the authors of Ref.~\cite{brehmer2018guide} because of its similarities to \gls*{abc}. Specifically, this method is based on creating a approximate model for the likelihood by estimating the distribution of low-dimensional summary statistics from samples drawn from the simulator with histograms or \emph{kernel density estimation}. The advantage over \gls*{abc} is that it is amortized, meaning that after the initial computational cost for the simulation and density estimation phase, evaluating new data points becomes efficient.
 This property makes kernel density estimation-based inference particularly well suited for problems with many i.i.d. observations, a key reason for its widespread use in particle physics measurements \cite{Brehmer:2020cvb}. For example, this approach was used for the discovery of the Higgs boson in a frequentist paradigm \cite{brehmer2018guide}. 
 
-Despite their success, there are some explicit disadvantages of these classical \gls*{sbi} methods that are evident from the above brief description. First, they both rely on low-dimensional summary statistics $s(\data)$ to compare simulations to the data, which may not retain all the information available in the data. Second, they suffer from the curse of dimensionality, with a required simulation budget that increases with the dimensionality of the parameter space. In particular, the acceptance rate of \gls*{abc}'s rejection algorithm vanishes exponentially as the dimensionality of the parameter space increases, thus significantly more simulation budget is needed to reach convergence in high dimensions for $\epsilon \to 0$.
+Despite their success and continuous progresses, there are some explicit disadvantages of these classical \gls*{sbi} methods that are evident from the above brief description. First, they both rely on low-dimensional summary statistics $s(\data)$ to compare simulations to the data, which may not retain all the information available in the data. Second, they suffer from the curse of dimensionality, with a required simulation budget that increases with the dimensionality of the parameter space. In particular, the acceptance rate of \gls*{abc}'s rejection algorithm vanishes exponentially as the dimensionality of the parameter space increases, thus significantly more simulation budget is needed to reach convergence in high dimensions for $\epsilon \to 0$.
 
 These challenges are tackled in modern \gls*{sbi} algorithms thanks to advances in deep learning \cite{lecun2015deep} and automatic differentiation \cite{baydin2018automatic}. In particular, first, the development of neural network's architectures tailored to various data structures has been fundamental for the processing of significantly more complex data  \cite{lecun2015deep}. This allows for the optimization of learned data features w.r.t. some custom loss, instead of relying on hand-crafted summary statistics. Second, neural network-based algorithms are being actively developed to estimate probability density distributions in high dimensions, overcoming the curse of dimensionality \cite[\eg][]{papamakarios2019neural, papamakarios2021normalizing, Papamakarios:2016ctj}. In the next section, we will discuss the main neural network-based \gls*{sbi} algorithms. 
 
 
 \subsection{Neural \gls*{sbi}} \label{subsec:nsbi}
 
-Moving beyond the classical \gls*{sbi} approaches, in recent years, a number of new \emph{neural network-based \gls*{sbi}} techniques have been proposed. Bayes' theorem (Equation~\eqref{eq:sbi-Bayes}) hints at a few different approaches for the implementation of neural \gls*{sbi} algorithms, as reviewed in Refs.~\cite{Cranmer:2019eaq, Lueckmann:2021aa}. 
+Moving beyond the classical \gls*{sbi} approaches, in recent years, a number of new neural network-based \gls*{sbi} techniques have been proposed. We refer the reader to Ref.~\cite{Cranmer:2019eaq} for a general review, to Ref.~\cite{Lueckmann:2021aa} for benchmarks of the various algorithms, and to Ref.~\cite{Ho:2024whi} for an exhaustive comparisons of all \gls*{sbi} methods currently available as well as discussions about their challenges and pitfalls in the context of astrophysics and cosmology.\footnote{An extensive list of works that use neural \gls*{sbi} in astrophysics, cosmology, and high energy physics can be found here: \url{https://github.com/smsharma/awesome-neural-sbi}.} 
 
-%Broadly, the taxonomy of neural \gls*{sbi} algorithms include neural posterior estimation (NPE) which employs density estimation techniques to directly estimate the posterior $p(\param\mid\data)$ \citep{Papamakarios:2016ctj, Greenberg:2019aa}; neural likelihood estimation (NLE) which instead uses density estimation to learn an approximation to the likelihood $p(\data\mid\param)$ \citep{Papamakarios:2018aa}; and neural ratio estimation (NRE) \citep{Hermans:2019ioj,Miller:2020hua} which uses classifiers to approximate the likelihood-to-evidence or posterior-to-prior ratio $\frac{p(\data\mid\param)}{p(\data)}=\frac{p(\param\mid\data)}{p(\param)}$. In this thesis we will focus on the latter and its extensions.
+In general, Bayes' theorem (Equation~\eqref{eq:sbi-Bayes}) hints at a few different approaches for the implementation of neural \gls*{sbi} algorithms: \gls*{npe} which employs density estimation techniques to directly estimate the posterior $p(\param\mid\data)$ \cite{Papamakarios:2016ctj, Greenberg:2019aa}; \gls*{nle} which instead uses density estimation to learn an approximation to the likelihood $p(\data\mid\param)$ \cite{Papamakarios:2018aa, Durkan:2018aa}; and \gls*{nre} \cite{cranmer2015approximating, gutmann2018likelihood, Hermans:2019ioj, thomas2022likelihood, Miller:2020hua} which uses classifiers to approximate the likelihood-to-evidence or posterior-to-prior ratio $\frac{p(\data\mid\param)}{p(\data)}=\frac{p(\param\mid\data)}{p(\param)}$. In the following paragraphs, we will describe their fundamental properties and compare them.
 
-For example, one possible choice is \emph{\gls*{npe}} \citep{Papamakarios:2016ctj, Greenberg:2019aa}, where one introduces a density estimator $q_\Phi(\param\mid\data)$, parametrized through the weights $\Phi$, which is trained to approximate the posterior for parameters $\param$ given data $\data$,
+
+\paragraph*{Neural posterior estimation}
+
+\Gls*{npe} is the most straightforward method \cite{Papamakarios:2016ctj, Greenberg:2019aa}. It introduces a density estimator $q_\Phi(\param\mid\data)$, parametrized through the weights $\Phi$, which is trained to approximate the posterior for parameters $\param$ given data $\data$,
+%
 \begin{equation}
     q^\text{NPE}_\Phi(\param \mid \data) \approx p(\param\mid\data)\;.
 \end{equation}
-A common loss function used in this context is the forward Kullback-Leibler divergence~\cite{Kullback:1951zyt},
-\begin{equation} \label{eq:kld}
-    D_{KL}(p \mid\mid q) = \sum_{x} p(x) \log\left(\frac{p(x)}{q(x)}\right) \;.
-\end{equation}
-Application of this loss function requires that the density estimator is normalized to one, $\int \dd\param\ q^\text{NPE}_\Phi(\param \mid \data)=1$, , which can be guaranteed by using specific network architectures like normalizing flows~\cite{papamakarios2021normalizing}.
+%
+Specifically, we want to reduce the dissimilarity between the density estimator $q^\text{NPE}_\Phi(\param \mid \data)$ and the true posterior $p(\param\mid\data)$ by minimizing w.r.t. the weights $\Phi$ the \emph{forward} \gls*{kl} divergence \cite{Kullback:1951zyt},
+%
+\begin{align} \label{eq:fkl}
+%\mathop{\arg\min}\limits_\Phi
+	D_{\mathrm{KL}}(p \| q^\text{NPE}_\Phi) &= \int \dd \param \,p\left(\param \mid \data\right) \ln \left(\frac{p\left(\param \mid \data\right)}{q^\text{NPE}_\Phi\left(\param \mid \data\right)}\right) \\
+	& =\mathop{\mathbb{E}}\limits_{\param \sim p\left(\param \mid \data\right)}\left[\ln \frac{p\left(\param \mid \data\right)}{q^\text{NPE}_\Phi\left(\param \mid \data\right)}\right]
+\end{align}
+%
+%\begin{equation} \label{eq:kld}
+%    D_{KL}(p(x) \mid q(x) = \sum_{x} p(x) \log\left(\frac{p(x)}{q(x)}\right) \;.
+%\end{equation}
+%
+As the expectation value is taken over samples from the true posterior distribution, we cannot evaluate the above quantity. To overcome this limitation, one averages over simulation data $\data \sim p(\data)$. The loss is now the expected forward \gls*{kl} divergence, where we have exploited the fact that $p(\param\mid \data) p(\data)=p(\data, \param)$, which we know how to sample:
+%
+\begin{align}
+	\mathop{\mathbb{E}}\limits_{\data \sim p(\data)}\left[D_{\mathrm{KL}}(p \| q^\text{NPE}_\Phi)\right] & =\mathop{\mathbb{E}}\limits_{\data, \param \sim p(\data, \param)}\left[\ln \frac{p(\param \mid \data)}{q^\text{NPE}_\Phi(\param \mid \data)}\right] \\
+	& =\underbrace{-\mathop{\mathbb{E}}\limits_{\data, \param \sim p(\data, \param)} \ln q^\text{NPE}_\Phi(\param \mid \data)}_{\text{expected entropy}}+\underbrace{\mathop{\mathbb{E}}\limits_{\data, \param \sim p(\data, \param)} \ln p(\param \mid \data)}_{\text {constant}} \;.
+\end{align}
 
-Another choice is to perform \emph{\gls*{nle}} \citep{Papamakarios:2018aa}, where one trains an estimator for the likelihood probability density of the data $\data$ given some model parameters $\param$, 
+\Gls*{npe} loss function is then given by the negative log-probability
+%
+\begin{equation}
+	\mathcal{L}^\text{NPE}=-\mathop{\mathbb{E}}\limits_{\data, \param \sim p(\data, \param)} \ln q^\text{NPE}_\Phi(\param \mid \data) \;.
+\end{equation}
+%
+Application of this loss function requires that the density estimator is normalized to one, $\int \dd\param\ q^\text{NPE}_\Phi(\param \mid \data)=1$, which can be guaranteed by using specific network architectures to parametrize $q^\text{NPE}_\Phi$. The most popular ones with this property are normalizing flows, which transform tractable density functions into complex ones through a sequence of invertible operations with tractable Jacobians \cite{kobyzev2020normalizing, papamakarios2021normalizing}. The \gls*{npe} algorithm has the advantage that it allows both for evaluation and sampling of the estimates the posterior from the normalizing flow. However, the pitfall is that it requires an analytic form of the proposal prior from which training data was sampled, which may not be always accessible (\eg\ from cosmological simulations).
+
+\Gls*{npe} has been widely used in astrophysics, for strong gravitational lensing analysis \cite{Wagner-Carena:2020yun, Wagner-Carena:2022mrn, wagnercarena2024strong}, gravitational waves parameter estimation \cite{Dax:2021tsq, Crisostomi:2023tle, kolmus2024tuning}, gravitational wave background reconstruction \cite{Dimitriou:2023knw}, cosmological parameter inference \cite{Tucci:2023bag}, X-ray spectral fitting \cite{Barret:2024kvc}, exo-planetary atmospheric retrieval \cite{vasist2023neural}, galaxy spectra inference \cite{Hahn:2022nda, khullar2022digs}, galactic center $\gamma$-ray excess characterization \cite{Mishra-Sharma:2021oxe}, among other applications.
+
+\todo{}
+\begin{itemize}
+	\item comparison with VI
+	\item \cite{ambrogioni2019forward} marginalization. If we substitute $q_\phi(\mathbf z|\mathbf x)$ with something low dimensional, e.g. $q_\phi(z_1|\mathbf x)$, we automatically correct marginal posterior estimates, without performing integrals explicitly. Omitting correlations generates correctly marginalized posteriors
+	\item VI:The variational posterior $q_\phi(\mathbf z|\mathbf x)$*must* cover *all* parameters that the likelihood model is conditioned on. Omitting correlations (mean-field approximation) gives *lower* bound on parameter uncertainties.
+\end{itemize}
+
+
+\paragraph*{Neural likelihood estimation}
+
+Another choice is to perform \emph{\gls*{nle}} \cite{Papamakarios:2018aa, Durkan:2018aa}, where one trains an estimator for the likelihood probability density of the data $\data$ given some model parameters $\param$, 
 \begin{equation}
     q^\text{NLE}_\Phi(\data \mid \param) \approx p(\data\mid\param)\;.
 \end{equation}
-Again, specialized network architectures are typically employed to guarantee that $q_\Phi(\data \mid \param)$ is a properly normalized density function.
+Following a similar reasoning as the one employed to derive \gls*{npe} loss function, \gls*{nle} loss function is given by the negative log-likelihood
+%
+\begin{equation}
+	\mathcal{L}^\text{NLE}=-\mathop{\mathbb{E}}\limits_{\data, \param \sim p(\data, \param)} \ln q^\text{NLE}_\Phi(\data \mid \param) \;.
+\end{equation}
+%
+Again, specialized network architectures as normalizing flows are typically employed to guarantee that $q^\text{NLE}_\Phi(\data \mid \param)$ is a properly normalized density function.
 
-In this broad taxonomy, Bayes' theorem hints at a last quantity that can be estimated, the likelihood-to-evidence or posterior-to-prior ratio 
+\Gls*{nle} has also been widely used in astrophysics, for gravitational waves parameter estimation \cite{Vilchez:2024qnw} and cosmological parameter inference \cite{Alsing:2019xrx, Modi:2023drt, Makinen:2021nly, DES:2024xij, Jeffrey:2020aa}, among other applications.
+
+
+
+\paragraph*{Neural ratio estimation}
+
+Bayes' theorem hints at a last quantity that can be estimated, the likelihood-to-evidence or posterior-to-prior ratio 
 \begin{equation}
 	r(\param;\data)\approx\frac{p(\data\mid\param)}{p(\data)}=\frac{p(\param\mid\data)}{p(\param)}\; .
 \end{equation}
-This quantity is approximated using binary classification in \emph{\gls*{nre}}.
-In this case, the ratio does not need to be normalized, hence one is free to use any neural network architecture. %, since there is no need to enforce normalization. 
-In this thesis we will focus on this last algorithm and its extensions.
+This quantity is approximated using binary classification via a supervised learning task. In this case, the ratio does not need to be normalized, hence one is free to use any neural network architecture. We will explore in more details the \gls*{nre} algorithm in a dedicated section, Section~\ref{subsec:tmnre-nre}, as in this thesis we will focus on this last method and its extensions.
 
-\paragraph*{Active learning} The taxonomy of \gls*{sbi} algorithms can be refined further based on whether they use some form of {active learning} to guide the simulator towards parts of the parameter space that are most relevant for a specific target observation $\data_0$. In particular, \emph{sequential} \gls*{sbi} approaches adaptively choose informative simulations by using sequentially refined proposal distributions for the model parameters. They have been reported to outperform and be more simulation-efficient with respect to non-sequential ones across a number of different benchmark tasks \citep{Lueckmann:2021aa} and, \eg, in cosmology \cite{Cole:2021gwr}, in gravitational waves astrophysics \cite{Bhardwaj:2023xph}, and in strong lensing analysis \cite{wagnercarena2024strong}. 
+\Gls*{nre} has also been widely used in astrophysics and cosmology, for gravitational waves parameter estimation \cite{Bhardwaj:2023xph, Alvey:2023naa}, gravitational wave background reconstruction \cite{Alvey:2023npw}, strong gravitational lensing analysis \cite{Brehmer:2019jyt, Zhang:2022djp, Montel:2022fhv, Coogan:2022cky}, cosmology \cite{Cole:2021gwr, List:2023aa, FrancoAbellan:2024tbj}, stellar streams analysis \cite{Hermans:2020skz, albatross}, 21-cm power spectra \cite{Saxena:2023tue}, type Ia supernovae \cite{Karchev:2022xyn, Karchev:2024stw}, point source detection \cite{AnauMontel:2022ppb}, astrometry \cite{Mishra-Sharma:2021nhh}, among other applications. 
+
+
+\paragraph*{Active learning} There are a number of additional features that can be used on top of these core \gls*{sbi} algorithms, either preceding or following the main inference step. Here, we further refine the taxonomy of \gls*{sbi} algorithms based on whether they use some form of {active learning} to guide the simulator towards parts of the parameter space that are most relevant for a specific target observation $\data_0$. In particular, \emph{sequential} \gls*{sbi} approaches adaptively choose informative simulations by using sequentially refined proposal distributions for the model parameters. They have been reported to outperform and be more simulation-efficient with respect to non-sequential ones across a number of different benchmark tasks \citep{Lueckmann:2021aa} and, \eg, in cosmology \cite{Cole:2021gwr}, in gravitational waves astrophysics \cite{Bhardwaj:2023xph}, and in strong lensing analysis \cite{wagnercarena2024strong}. 
 
 The core intuition behind sequential \gls*{sbi} algorithms is the following: given a single observation of interest, $\data_0$, sampling parameters from the entire prior space to generate training data may not be efficient, since it leads to training data $(\data, \param)$ that has significant variance compared to the target observation $\data_0$. Therefore, for a fixed simulation budget, the training samples contain only limited information about the posterior $p(\param\mid\data_0)$. The alternative proposed by sequential algorithms, in order to increase simulation efficiency, is to draw parameters from an adaptive proposal distribution $p^{(R)}(\param)$, resulting in training data that matches the observation of interest more closely in each sequential round $R$. More details regarding various possible implementations of sequential inference are given in Section~\ref{subsec:tmnre-t}.
 
@@ -134,7 +187,7 @@ Sampling $C=0$ and $C=1$ with equal probability, the decision function for the B
 \begin{equation} \label{eq:sbi-classifier}
     p(C = 1 \mid \data, \param) = \frac{p(\data, \param)}{p(\data, \param) + p(\data) p(\param)} \equiv \sigma[ \log r(\param; \data)] \, ,
 \end{equation}
-where we introduced the sigmoid function $\sigma(y) \equiv 1 / (1 + e^{-y})$. Importantly, the equivalence in Equation~\eqref{eq:sbi-classifier} shows how the Bayes-optimal classifier is related to the  posterior-to-prior, likelihood-to-evidence, or joint-to-marginal distribution ratio:
+where we introduced the sigmoid function $\sigma(y) \equiv 1 / (1 + e^{-y})$. Importantly, the equivalence in Equation~\eqref{eq:sbi-classifier}, often called the ``likelihood ratio trick" \cite[\eg][]{cranmer2015approximating, Brehmer:2019jyt}, shows how the Bayes-optimal classifier is related to the  posterior-to-prior, likelihood-to-evidence, or joint-to-marginal distribution ratio:
 \begin{equation} \label{eq:sbi-ratio}
     r(\param;\data) \equiv \frac{p(\param \mid \data)}{p(\param)} = \frac{p(\data \mid \param)}{p(\data)} =  \frac{p(\data, \param)}{p(\data) p(\param)} \, .
 \end{equation}
@@ -240,7 +293,7 @@ The prior truncation scheme thus defines a series of nested indicator functions 
 
 Importantly, since this sequential scheme does not modify the shape of the prior proposal distribution, but only restricts its support, the inference is still locally amortised in the constrained proposal distribution region, thus allowing for the possibility of tests that rely on performing inference across multiple observations (in the $\Gamma$ support). Moreover, it is also possible to use the same training data generated for a round to efficiently train arbitrary marginal posteriors for any set of model parameters. 
 
-Training targeted ratio estimators is achieved by replacing the full prior with a \emph{truncated prior} $p^{(R)}_{\Gamma}(\interest)$, where the parameters are restricted to a region $\Gamma$ where they are likely to have generated $\data_0$. Since parameters from the complement of $\Gamma$ are unlikely to have generated $\data_0$, training a ratio estimator with data generated from the truncated prior as opposed to the full prior has little impact on the posterior learned by our ratio estimators. Indeed, only those regions where $p(\data_0 \mid\interest)$ is sufficiently negligible are removed, such that $p(\data_0\mid\interest) \to \mathbb{I}_\Gamma(\interest) \cdot p(\data_0\mid\interest)$ remains an accurate approximation for a given target observation $\data_0$. For generous enough $\Gamma$, the posterior remains essentially unchanged far into its tails,
+Training targeted ratio estimators is achieved by replacing the full prior with a \emph{truncated prior} $p^{(R)}_{\Gamma}(\interest)$, where the parameters are restricted to a region $\Gamma$ where they are likely to have generated $\data_0$. Since parameters from the complement of $\Gamma$ are unlikely to have generated $\data_0$, training a ratio estimator with data generated from the truncated prior as opposed to the full prior has little impact on the posterior learned by our ratio estimators. Indeed, only those regions where $p(\data_0 \mid\interest)$ is sufficiently negligible are removed, such that $p(\data_0\mid\interest) \to \mathbb{I}_\Gamma(\interest) \cdot p(\data_0\mid\interest)$ remains an accurate approximation for a given target observation $\data_0$. Indeed, too small values for the threshold $\epsilon$ are inefficient in focusing simulations, whereas too large values would cut into the relevant part of the posterior. For generous enough $\Gamma$, \ie\ an appropriate threshold $\epsilon$, the posterior remains essentially unchanged far into its tails,
 \begin{equation}
 \begin{split}
     p_\Gamma(\interest\mid\data) 
@@ -350,9 +403,9 @@ Looking at Equation~\eqref{eq:loss-jsd}, assuming a fully converged classifier a
 %Datasets composed of multiple samples are ubiquitous in scientific and more broadly real-world data analysis tasks. These datasets are typically governed by underlying models that exhibit a rich hierarchical structure, with local parameters shaping individual events while global parameters exert influence across the entire dataset. This layered structure, if appropriately utilized, can greatly augment the efficiency and effectiveness of the inference process.
 %We substantiate theoretically as well as empirically the fact that hierarchy-aware inference in many implicit models with a hierarchical structure requires a dataset-wide approach, contrasted with the more common paradigm of combining implicit likelihood or posterior estimators associated with individual observations.
 %
-%The joint probability distribution of a set of events with cardinality N, with global parameters of interest θ, global nuisance parameters θν as well as local parameters zi can be written as:
+%The joint probability distribution of a set of events with cardinality N, with global parameters of interest \interest, global nuisance parameters \interestν as well as local parameters zi can be written as:
 %N
-%p({x} | {z},θ,θν) = Yp(xi | zi,θ,θν), (1)
+%p({x} | {z},\interest,\interestν) = Yp(xi | zi,\interest,\interestν), (1)
 %i=1
 %
 %come from different stellar populations have different intrinsic prop
@@ -376,16 +429,23 @@ Looking at Equation~\eqref{eq:loss-jsd}, assuming a fully converged classifier a
 
 Using local amortization, one can cheaply validate the Bayesian coverage properties of the approximate posteriors \cite{Hermans:2021rqv, Cole:2021gwr, Karchev:2022xyn}, and construct confidence regions with exact frequentist coverage \cite{Karchev:2022xyn, dalmasso2020confidence, dalmasso2021likelihood}. Here we focus on the former types of tests, and use the \emph{expected coverage test} that probes the empirical (\ie~determined from analyses of simulated data $\data$) Bayesian coverage properties of the estimated posteriors $\hat{p}(\interest \mid \data)$.
 
-An \emph{expected coverage test}  measures whether Bayesian credible regions of different widths have achieved their nominal coverage \cite{Hermans:2021rqv, Cole:2021gwr}. In simple words, it checks whether the true parameters $\interest$ fall within the $x\%$ credible region ($1-\alpha$) of the estimated posterior for $x\%$ of the randomly drawn observations $\data \sim p(\data\mid\interest)$. Agreement between the nominal and empirically-measured expected coverage is a necessary (but not sufficient) condition for the density/ratio estimator to be a correct estimate of the posterior. In case of a conservative estimator, the nominal credibility $1-\alpha$ is lower than the empirical one $1-\hat\alpha$, and vice versa for an overconfident estimator. In combination with visually checking the posteriors, this test supports the accuracy of the posterior estimator and is also particularly useful when one does not have access to the ground truth against which to compare the results.
+An \emph{expected coverage test} measures whether Bayesian credible regions of different widths, $\Omega_{p(\interest \mid \data)}(1-\alpha)$, have achieved their $1-\alpha$ nominal coverage \cite{Hermans:2021rqv, Cole:2021gwr}. In simple words, it checks whether the true parameters $\interest$ fall within the credible region, of the estimated posterior $\hat{p}(\interest\mid\data)$ for $\alpha\%$ of the randomly drawn observations $\data \sim p(\data\mid\interest)$:
+%
+\begin{align}
+	1-\hat{\alpha} &\equiv \mathop{\mathbb{E}}\limits_{p(\data, \interest)} \left[ \mathbb{I} \left[ \interest \in \Omega_{\hat{p}(\interest \mid \data)}(1-\alpha) \right] \right] \\
+		& \mathop{\rightarrow}\limits_{\hat{p} \rightarrow p}  \mathop{\mathbb{E}}\limits_{p(\interest)} \underbrace{\mathop{\mathbb{E}}\limits_{p(\interest\mid\data)} \left[ \mathbb{I} \left[ \interest \in \Omega_{p(\interest \mid \data)}(1-\alpha) \right] \right]}_{ = 1-\alpha}.
+\end{align}
+%
+In the limit where the estimator $\hat{p}(\interest\mid\data)$ approaches the correct one ${p}(\interest\mid\data)$, one trivially expect that $1-\alpha=1-\hat{\alpha}$. 
 
-Since we are mostly interested in small values of $\alpha$, corresponding to posterior regions with high mass, it is convenient to reparameterize $\alpha$ in terms of a new variable $z$, defined as $1-\frac12 \alpha$ quantile of the standard normal distribution \cite{Cole:2021gwr}. As a results,  $z = 1, 2, 3$ have $1-\alpha = 0.6827, 0.9545, 0.9997$, and correspond to the common $1\sigma$, $2\sigma$, $3\sigma$ regions. We show a mock example of such test in the right panel of in Figure~\ref{fig:sbi-test} to illustrate its general behaviour.
+In case of a conservative estimator, the nominal credibility $1-\alpha$ is lower than the empirical one $1-\hat\alpha$, and vice versa for an overconfident estimator. In general, in case of a conservative coverage plot one should check if the estimator has fully converge. On the other hand, in case of an overconfident coverage plot, one should check for overfitting. In combination with visually checking the posteriors, this test supports the accuracy of the posterior estimator and is also particularly useful when one does not have access to the ground truth against which to compare the results. 
+
+Agreement between the nominal and empirically-measured expected coverage is a necessary (but not sufficient) condition for the density/ratio estimator to be a correct estimate of the posterior. Indeed, the expected coverage test checks for the consistency of the posterior, not for its precision. For example, a not focused posterior that resembles the prior leads to a diagonal plot with optimal coverage. Moreover, it tests for the coverage \emph{averaged} over parameter values $\interest \sim p(\interest)$. As a result, some parameter regions might be over- and other parameter regions under-covered.
+
+Since we are mostly interested in small values of $\alpha$, corresponding to posterior regions with high mass, it is convenient to reparameterize $\alpha$ in terms of a new variable $z$, defined as $1-\frac12 \alpha$ quantile of the standard normal distribution \cite{Cole:2021gwr}. As a results,  $z = 1, 2, 3$ have $1-\alpha = 0.6827, 0.9545, 0.9997$, and correspond to the common $1\sigma$, $2\sigma$, $3\sigma$ regions. We show a mock example of such test in the right panel of in Figure~\ref{fig:sbi-test} to illustrate its general behavior.
+
 
 In Chapter~\ref{cha:lensing}, we will use empirical coverage plots in order to double-check and confirm the convergence of our posterior estimators for strong lensing image analysis. Closely related versions of this test and plots have appeared in the literature, \eg~in Refs.~\cite{Dax:2021tsq,Karchev:2022xyn, Bhardwaj:2023xph}. Developing more tests in order to trust results generated by \gls*{sbi} algorithms is very active and ongoing work. For example, it is worth mentioning an alternative method of defining Bayesian credible regions using distances to random points, which can, in certain circumstances, detect a systematic bias \cite{lemos2023sampling}.
-
-
-
-
-\bigskip
 
 \begin{figure}
 	\centering
@@ -396,6 +456,27 @@ In Chapter~\ref{cha:lensing}, we will use empirical coverage plots in order to d
 \end{figure}
 
 In this section we have introduced the technical details of the \gls*{tmnre} algorithm, and its key building blocks: \gls*{nre} (Section~\ref{subsec:tmnre-nre}), marginalization  (Section~\ref{subsec:tmnre-m}), and prior truncation  (Section~\ref{subsec:tmnre-t}). We have also seen the general network architecture that is usually employed within this algorithm (Section~\ref{subsec:tmnre-nn}) and how to test its results (Section~\ref{subsec:tmnre-test}). A complete sketch of the workflow of a \gls*{tmnre} algorithm is illustrated in Figure~\ref{fig:sbi-tmnre}.
+
+
+\section{Neural SBI methods comparison} \label{sec:comparison}
+
+Each of the three core neural \gls*{sbi} algorithms described in Section~\ref{subsec:nsbi} has its distinct benefits and drawbacks. The most suitable choice between \gls*{npe}, \gls*{nle}, and \gls*{nre} is largely determined by the properties of the underlying problem, the dimensions of the data and of the parameter space, and the specific application. For a quantitative comparison of the three algorithms on machine learning benchmarks, we refer the reader to Ref.~\cite{Lueckmann:2021aa}. In this section, following discussions from Refs.~\cite{Cranmer:2019eaq, Cole:2021gwr, Ho:2024whi}, we focus on describing qualitative similarities and differences between them.
+
+%First, the ease of learning the shape of a likelihood or posterior distribution can vary dramatically between different physical problems. For example, the shape of the unimodal posterior in Figure 1 is considerably simpler than that of the bimodal likelihood, and thus NPE will be easier to converge than NLE. How- ever, this is the opposite for some applications presented in Section 4, where the likelihood is simpler and thus NLE converges much faster than NPE or NRE. In cases where both the posterior and likelihood exhibit complicated shapes, NRE models are a strong option, as they do not require an explicit choice of NDE.
+
+In general, \gls*{npe} and \gls*{nle} solve a density-estimation problem via an \emph{unsupervised} learning task, as there are no explicit labels. Instead, \gls*{nre} solves a classification problem via a \emph{supervised} learning task, which is often simpler. Moreover, ratios can be estimated with simple classification networks, which are often easier to train than density estimation models (as normalizing flows). Hence, for higher-level inference, learning an estimator for the likelihood-ratio function may often be more efficient.
+
+Furthermore, density estimation becomes increasingly hard when the dimension of the data is large, or the data distribution is highly complex \cite{papamakarios2021normalizing}. This problem is alleviated by compressing the data to some simple low-dimensional summary statistics before performing inference with density estimators. For example, a compression network, such as an Information Maximizing Neural Network \cite{charnock2018automatic}, is often used. The \emph{compression} network is typically trained upfront before inference, with additional simulation cost. On the other hand, as seen in Section~\ref{subsec:tmnre-nn}, in \gls*{nre} the compression network and the ratio estimator are trained simultaneously.    	 
+
+One of the key advantages of \gls*{npe} and \gls*{nle} over \gls*{nre} is the additional \emph{sampling functionality} from the surrogate model, which is not possible for \gls*{nre} parameterized via \eg\ a \gls*{mlp}. For \gls*{nre} and \gls*{nle}, one needs a way to sample from the neural posterior after training. Still, likelihood(-to-evidence ratio) evaluation is generally very fast thanks to the massive evaluation speed and parallelization afforded by neural networks. Broadly, \gls*{npe} models are better suited for scenarios requiring repeated inference across multiple observations, as it can be prohibitively expensive to run sampling chains for \gls*{nre} and \gls*{nle} for many test points. On the other hand, for hierarchical likelihood sampling, \gls*{nre} and \gls*{nle} will be a more effective choice.
+
+Despite these initial differences, the three algorithms share many similarities. First of all, when not using active learning, all three approaches are \emph{amortized}: after an upfront simulation and training phase, they can all be efficiently evaluated for arbitrary data and parameter points (in the prior support). Second, all three approaches can use \emph{active learning}, iteratively updating the proposal distribution to guide the simulator parameters toward the relevant parameter region (Section~\ref{subsec:tmnre-t}).
+
+It is also important to note that, while \gls*{npe} directly targets the posterior, it induces a prior dependence in the inference. On the other hand, \gls*{nre} and \gls*{nle} are prior independent, allowing extra flexibility to change the prior during inference, and the possibility to do frequentist inference or model comparisons. 
+	
+While all approaches can directly target marginal posteriors \cite{Miller:2020hua, Miller:2021aa, Alsing:2019dvb, Jeffrey:2020itg}, some extra care is required when combining marginalization and active learning if there is a prior dependence in the inference. Indeed, marginal estimation will be in general affected by the proposal distribution, since one implicitly integrates over it. This generally cannot be undone after training (for a workaround where marginalization can be integrated into the compression step by constructing appropriate summary statistics see, \eg, Ref.~\cite{Alsing:2019dvb}). 
+
+Combining the insights from all algorithms, which are currently categorized as distinct, is expected to lead to facilitate further advancements.
 
 
 \section{SBI applications in this thesis} \label{sec:applications}
