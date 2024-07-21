@@ -3,11 +3,9 @@
 The fundamental goal of the physical sciences is to understand the laws that govern physical phenomena.
 This process inherently involves a continuous interplay between theoretical models and physical observations, forming a feedback loop that continuously refines both. By comparing observational data with model predictions, model validity can be tested, areas of improvements can be identified, and their faithfulness to reality can be improved. Conversely, theoretical models can guide observational strategies by predicting phenomena that have yet to be observed, hence focusing the attention to specific phenomena or conditions that may yield new insights.
 
-%But transforming data into knowledge is still a largely unsolved problem; a problem, that must be tackled by cross-disciplinary efforts.
 A key ingredient of this scientific process is \emph{statistics}. Statistics is a rigorous mathematical language that enables formal statements about what events are possible under physical laws, thus bridging the gap between physics models and observational data. Statistics is today at the very heart of the scientific process, and not just an optional nuisance.
 Guided by statistical formulation, given some parameters that describe a physical system, implied \emph{predictions} or consequences of a physical model can be computed, allowing for the systematic exploration of the model's implications. Predictions can be either deterministic or intrinsically stochastic, \eg\ due to the randomness of the physical processes, the measurement processes, or incomplete information.
-%This approach is known as forward modeling and the above-mentioned physical parameters are called the model parameters.
-In order to refine theoretical models, it is essential to perform the inverse process: starting with the effects to discover the causes, inferring from a set of observations the causal factors that produced them. This task, known as solving an \emph{inverse problem} \cite{Groetsch:1993, Aster:2005}, involves mapping back observational data to infer the underlying model parameters that are not directly observable. %, directly answering the question ``which range of physical model parameters is the most probable given my data?". 
+In order to refine theoretical models, it is essential to perform the inverse process: starting with the effects to discover the causes, inferring from a set of observations the causal factors that produced them. This task, known as solving an \emph{inverse problem} \cite{Groetsch:1993, Aster:2005}, involves mapping back observational data to infer the underlying model parameters that are not directly observable. 
 
 In astrophysics, this iterative cycle between prediction and inference is particularly challenging due to the complex nature of the systems under study. In this field, countless statistical methods have been developed over the years, and although rarely in the spotlight, they ultimately determine what is accepted as scientifically established truth. Since an inefficient or incorrect use of statistical data analysis may lead to weaker or entirely wrong conclusions, it is thus of the utmost importance to identify where and how progress is possible in order to advance the field. 
 
@@ -25,28 +23,20 @@ Given the unprecedented size and detail of these data, connecting theoretical mo
     \label{fig:intro-data}
 \end{figure}
 
-To get a glimpse of the types of challenges astrophysical data analysis is currently facing, we will now discuss on a high-level some exemplary problems. The selected topics cover only a small part of the current astrophysical statistical analysis challenges, and reflect the works presented in this thesis. %This introductory discussion will serve as their initial motivation, but when relevant, a connection to other statistical problems in physics will be made. 
-
+To get a glimpse of the types of challenges astrophysical data analysis is currently facing, we will now discuss on a high-level some exemplary problems. The selected topics cover only a small part of the current astrophysical statistical analysis challenges, and reflect the works presented in this thesis.
 
 \paragraph{Strong gravitational lensing}
- - challenges: very large number of degenerate parameters, mixture of parameter inference, object detection, and image reconstruction problem.
+Gravitational lensing \cite{Meneghetti:2016aa}, the phenomenon where light-rays from a distant source bend due to the presence of an intervening massive object (the lens), has significantly advanced various fields of physics. Significant findings include, \eg, discovering and analysing some of the most distant galaxies in the universe \cite[\eg][]{Zitrin_2015, Naidu_2022, Treu_2015}, determining the dark matter content within galaxy clusters and understanding its distribution on both galactic and sub-galactic scales \cite[\eg][]{Dalal:2001fq, Vegetti:2014lqa, Gilman:2019nap, Hsueh:2019ynk, Nightingale:2014aa}, detecting individual light dark matter halos \cite[\eg][]{Vegetti:2009cz, Vegetti:2012mc, Hezaveh:2016ltk}, and measuring the Hubble constant \cite[\eg][]{Suyu_2020, Birrer_2020}. Crucial to many of these studies is the capability to accurately invert the physical predictive model for the source and lens. Hence, it includes dealing with very large number of degenerate parameters: for instance, variations in the source morphology (\eg, parametrized by a pixel grid, with $\mathcal{O}(\text{pixels})$ parameters \cite[\eg][]{Karchev:2021fro}), substructure population (\eg, tenth of thousands of parameters for a cold dark matter population \cite[\eg][]{Montel:2022fhv}), and main lens mass distribution. Moreover, it involves solving a mixture of parameter inference, object detection, and image reconstruction problem.
         
-
-
 \paragraph{Cosmology}
-    - Field level inference
-     non-linear transformations, mixing of spatial structure,
-     
-     nowledge of the primordial matter density field from which the present non-linear observations formed is of fundamental importance for cosmology, as it contains an immense wealth of information about the physics, evolution, and initial conditions of the universe. Reconstructing this density field from the galaxy survey data is a notoriously difficult task, requiring sophisticated statistical methods, advanced cosmological simulators, and exploration of a multi-million-dimensional parameter space.
-     
-
+Recent and upcoming large-scale structure surveys will measure galaxy distributions with unprecedented precision, improving our understanding of cosmogenesis, neutrino physics, and dark energy \cite[\eg][]{LSSTDarkEnergyScience:2012kar, EUCLID:2011zbd}. These surveys compare cosmological models to data, starting with a model of the universe's initial conditions -- an isotropic density field with small Gaussian perturbations. This field evolved through gravitational processes into today's structures, catalogued in redshift space \cite{Bond:1995yt}. By modeling early universe processes and understanding the evolution of perturbations influenced by dark matter and dark energy, large-scale structure surveys provide direct constraints on the initial density field and its evolution \cite{Jasche:2012kq}. Mapping back today's structures to constraint the initial density field requires developing advanced cosmological simulators, and accounting for non-linear transformations, mixing of spatial structure, and noise, all while exploring a multi-million-dimensional parameter space at the field level.
+      
 \paragraph{Point-source in sky maps} 
-A striking example of how having higher-resolution data calls for more complex models that needs to account for more objects, hence more parameters, hence harder inference, is given by the evolution of $\gamma$-ray observations in the galactic plane. Starting with SAS-2 satellites (1972-1073), 6 $\gamma$-ray sources and the diffuse emission were identified \cite{Sas26ps, sas2}. Two decades later, with EGRET (1991-2000), it was possible to identify up to 188 $\gamma$-ray sources, extended point sources, and resolve gas emission \cite{Casandjian:2008ky}. With Fermi-LAT \cite{Fermi-LAT:2022byn}, we have now more than 6600  $\gamma$-ray sources, highly resolved gas maps, many extended sources, the detection of the Fermi bubbles \cite{dobler2010fermi}, and an unidentified component, the so called GeV excess \cite{Goodenough:2009gk}. A physical model to describe this type of data can require, \eg, $\mathcal{O}(10^4)$ parameters for the point sources alone. Moreover, some of its components have an unclear uncertainty quantification (\eg\ the gas maps). For this type of data, the statistical analysis can be thought of as a mixture of source detection and image analysis, and requires self-consistent measurement of point-source population parameters based on both on detected and undetected objects.
+A striking example of how having higher-resolution data calls for more complex models that needs to account for more objects, hence more parameters, hence harder inference, is given by the evolution of $\gamma$-ray observations in the galactic plane. Starting with SAS-2 satellites (1972-1073), 6 $\gamma$-ray sources and the diffuse emission were identified \cite{Sas26ps, sas2}. Two decades later, with EGRET (1991-2000), it was possible to identify up to 188 $\gamma$-ray sources, extended point sources, and resolve gas emission \cite{Casandjian:2008ky}. With Fermi-LAT \cite{Fermi-LAT:2022byn}, we have now more than 6600  $\gamma$-ray sources, highly resolved gas maps, many extended sources, the detection of the Fermi bubbles \cite{dobler2010fermi}, and an unidentified component, the so called GeV excess \cite{Goodenough:2009gk}. A physical model to describe this type of data can require, \eg, $\mathcal{O}(10^4)$ parameters for the resolved point sources alone. Moreover, some of its components have an unclear uncertainty quantification (\eg\ the gas maps). For this type of data, the statistical analysis can be thought of as a mixture of source detection and image analysis, and requires self-consistent measurement of point-source population parameters based on both on detected and undetected objects.
           
 The common thread behind these physical systems and their statistical challenges is that they are formally representable by large models, with the adjective ``large" describing three different properties at the same time: their complexity (in terms of number of components and potentially intricate interactions between them), their volume (in terms of observational data), and the computational resources (in terms of power, memory, and time) needed to solve them. In recent years, new classes of scalable, fast, and computational-efficient inference algorithms have been enabled by breakthroughs in machine learning \cite{Murphy:book}, which could play a major role in the successful analysis of these types of astrophysical data.
 
 
-\clearpage
 \section{The emergence of the simulation-based inference paradigm} \label{sec:paradigm}
 
 Over the years, in order to draw scientific conclusions, an abundance of statistical tools and physics simulation codes have been developed within the community.\footnote{An extensive list of the tools used in astrophysics, cosmology, and high energy physics can be found here: \url{https://github.com/nikosarcevic/HEP-ASTRO-COSMO}.}
@@ -129,19 +119,6 @@ This, and many other comparative analysis of \gls*{sbi} and \gls*{lbi} methods, 
         minor tick style={draw=none},
         legend style={draw=none}
 	]
-%	\fill [blue!30, opacity=0.3] 
-%		(axis cs:1, 9000) --
-%		(axis cs:1e8, 9000) --
-%		(axis cs:1e8, 1e8) --
-%		(axis cs:1, 1e8) --
-%		cycle;
-%	\node [blue, align=center] at (axis cs:5e5, 5e4) {Simulation-based inference};
-%	\fill [red!30,, opacity=0.3]
-%		(axis cs:1, 1e8) --
-%		(axis cs:81e2, 1e8) --
-%		(axis cs:1, 2e2) --
-%		cycle;
-%	\node [red, align=center, rotate=38] at (axis cs:4e1, 4e5) {Likelihood-based\\inference};
 	% Legend entries
 	\addlegendimage{mark=-,red,only marks,mark size=0}
 	\addlegendentry{\color{red}LBI}

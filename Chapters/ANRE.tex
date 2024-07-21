@@ -1,5 +1,5 @@
 
-\chapter{Scalable inference with autoregressive neural ratio estimation} \label{cha:anre}
+\chapter{Scalable simulation-based inference} \label{cha:anre}
 
 In recent years, there has been a remarkable development of \gls*{sbi} algorithms, and they have now been applied across a wide range of astrophysical and cosmological analyses. There are a number of key advantages to these methods, centered around the ability to perform scalable statistical inference without an explicit likelihood. In this chapter, we propose two technical building blocks to a specific sequential \gls*{sbi} algorithm, \gls*{tmnre}. In particular, first we develop autoregressive ratio estimation with the aim to robustly estimate correlated high-dimensional posteriors. Secondly, we propose a slice-based nested sampling algorithm to efficiently draw both posterior samples and constrained prior samples from ratio estimators, the latter being instrumental for sequential inference. To validate our implementation, we carry out inference tasks on three concrete examples: a toy model of a multi-dimensional Gaussian, the analysis of a stellar stream mock observation, and finally, a proof-of-concept application to substructure searches in strong gravitational lensing. 
 

@@ -35,7 +35,8 @@ Interestingly, a physical implementation of \gls*{abc}-rejection scheme for a si
 
 \subsubsection{Approximate frequentist computation}
 
-A second classical approach to \gls*{sbi} was also proposed in the 1980s by Diggle and Gratton \cite{diggle1984monte}. The approach was dubbed ``approximate frequentist computation" by the authors of Ref.~\cite{brehmer2018guide} because of its similarities to \gls*{abc}. Specifically, this method is based on creating an approximate model for the likelihood by estimating the distribution of low-dimensional summary statistics from samples drawn from the simulator with histograms or \emph{kernel density estimation}. The advantage over \gls*{abc} is that it is amortized, meaning that after the initial computational cost for the simulation and density estimation phase, evaluating new data points becomes efficient \todo{Is this true? From Cranmer review. But thought ABC is amortized}.
+A second classical approach to \gls*{sbi} was also proposed in the 1980s by Diggle and Gratton \cite{diggle1984monte}. The approach was dubbed ``approximate frequentist computation" by the authors of Ref.~\cite{brehmer2018guide} because of its similarities to \gls*{abc}. Specifically, this method is based on creating an approximate model for the likelihood by estimating the distribution of low-dimensional summary statistics from samples drawn from the simulator with histograms or \emph{kernel density estimation}. The advantage over \gls*{abc} is that it is amortized, meaning that after the initial computational cost for the simulation and density estimation phase, evaluating new data points becomes efficient. 
+%\todo{Is this true? From Cranmer review. But thought ABC is amortized}.
 This property makes kernel density estimation-based inference particularly well suited for problems with many i.i.d. observations, a key reason for its widespread use in particle physics measurements \cite{Brehmer:2020cvb}. For example, this approach was used for the discovery of the Higgs boson in a frequentist paradigm \cite{brehmer2018guide}. 
 
 
@@ -69,10 +70,6 @@ Specifically, we want to reduce the dissimilarity between the density estimator 
 	D_{\mathrm{KL}}(p \| q^\text{NPE}_\Phi) &= \int \dd \param \,p\left(\param \mid \data\right) \ln \left(\frac{p\left(\param \mid \data\right)}{q^\text{NPE}_\Phi\left(\param \mid \data\right)}\right) \\
 	& =\mathop{\mathbb{E}}\limits_{\param \sim p\left(\param \mid \data\right)}\left[\ln \frac{p\left(\param \mid \data\right)}{q^\text{NPE}_\Phi\left(\param \mid \data\right)}\right]
 \end{align}
-%
-%\begin{equation} \label{eq:kld}
-%    D_{KL}(p(x) \mid q(x) = \sum_{x} p(x) \log\left(\frac{p(x)}{q(x)}\right) \;.
-%\end{equation}
 %
 As the expectation value is taken over samples from the true posterior distribution, we cannot evaluate the above quantity. To overcome this limitation, one averages over simulation data $\data \sim p(\data)$. The loss is now the expected forward \gls*{kl} divergence, where we have exploited the fact that $p(\param\mid \data) p(\data)=p(\data, \param)$, which we know how to sample:
 %
@@ -358,48 +355,6 @@ Looking at Equation~\eqref{eq:loss-jsd}, assuming a fully converged classifier a
     \frac{p(\interest\mid \boldsymbol{s})}{p(\interest)} 
     \lessgtr 1\;.
 \end{equation}
-
-
-%What does a large JS-divergence signify? To see this, we consider the average Bayesian probability of error of wrongly classifying a parameter-data pair as drawn from the prior or the posterior, which is given by
-%%
-%\begin{equation}
-%    \hat P_e = \mathbb{E}_{\data \sim p(\data)} \left[\frac12 \min(p(\interest\mid\data), p(\interest))\right]
-%\end{equation}
-%%
-%In Ref.~\cite{XYZ} it was shown that the minimum of the NRE loss provides an upper bound on the error rate,
-%%
-%\begin{equation}
-%    \hat P_e
-%    \leq
-%    2\log 2 -  
-%    2 \mathbb{E}_{\data\sim p(\data)}\left[D_{JS} ( p(\interest\mid\data) \;\|\; p(\interest))\right]
-%    \leq \ell_{NRE}[F_\phi]\;.
-%\end{equation}
-%
-%When using NRE as described above, the summary is optimized such that it minimizes (an upper bound on) the error rate when classifying points as drawn from the prior vs. drawn from the posterior, or (equivalently) whether the likelihood-to-evidence ratio is larger or smaller than one,
-%%
-%\begin{equation}
-%    \frac{p(\boldsymbol{s} \mid \interest)}{p(\boldsymbol{s})}  = 
-%    \frac{p(\interest\mid \boldsymbol{s})}{p(\interest)} 
-%    \lessgtr 1\;.
-%\end{equation}
-
-%\subsection{Hierarchical inference} \label{subsec:tmnre-hierarchical}
-%\todo{Add brief paragraph about hierarchical inference in SBI to setup the problem for populations of subhalos in lensing and point sources in maps?} 
-%
-%When analyzing real-world data it is common to work with event ensembles, which comprise sets of observations that collectively constrain the parameters of an underlying model of interest. Such models often have a hierarchical structure, where “local” parameters impact individual events and “global” parameters influence the entire dataset. 
-%Datasets composed of multiple samples are ubiquitous in scientific and more broadly real-world data analysis tasks. These datasets are typically governed by underlying models that exhibit a rich hierarchical structure, with local parameters shaping individual events while global parameters exert influence across the entire dataset. This layered structure, if appropriately utilized, can greatly augment the efficiency and effectiveness of the inference process.
-%We substantiate theoretically as well as empirically the fact that hierarchy-aware inference in many implicit models with a hierarchical structure requires a dataset-wide approach, contrasted with the more common paradigm of combining implicit likelihood or posterior estimators associated with individual observations.
-%
-%The joint probability distribution of a set of events with cardinality N, with global parameters of interest \interest, global nuisance parameters \interestν as well as local parameters zi can be written as:
-%N
-%p({x} | {z},\interest,\interestν) = Yp(xi | zi,\interest,\interestν), (1)
-%i=1
-%
-%come from different stellar populations have different intrinsic prop
-%Hierarchical Bayesian modelling, however, comes at the cost of having to infer individual parameters for each observed SN Ia, and so the computational burden scales with the data set size
-% population variability 
-%perform simulation-based inference over event ensembles and can deal with datasets of varying cardinality\cite{Heinrich:2023bmt}
 
 \clearpage
 
