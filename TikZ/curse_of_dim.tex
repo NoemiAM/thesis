@@ -1,8 +1,8 @@
 \documentclass{standalone}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.17}
-\input{../../symbols}
-\input{../../colors}
+\input{../symbols}
+\input{../colors}
 
 
 \begin{document}
@@ -31,6 +31,64 @@
 		(axis cs:1, 2e2) --
 		cycle;
 	\node [red, align=center, rotate=38] at (axis cs:4e1, 4e5) {Likelihood-based\\inference};
+	
+%	% Legend entries
+%	\addlegendimage{mark=*,black,only marks,mark size=2}
+%	\addlegendentry{Ref.~\cite{Cole:2021gwr}}
+%	\addlegendimage{mark=square*,black,only marks,mark size=2}
+%	\addlegendentry{Ref.~\cite{Cole:2021gwr}}
+%	\addlegendimage{mark=triangle*,black,only marks,mark size=2}
+%	\addlegendentry{Ref.~\cite{Alsing:2019xrx}}
+%	\addlegendimage{mark=diamond*,black,only marks,mark size=2}
+%	\addlegendentry{Ref.~\cite{Bhardwaj:2023xph}}
+%	\addlegendimage{mark=pentagon*,black,only marks,mark size=2}
+%	\addlegendentry{Ref.~\cite{Vilchez:2024qnw}}
+%	\addlegendimage{mark=asterisk,black,only marks,mark size=2}
+%	\addlegendentry{Ref.~\cite{Saxena:2023tue}}
+%	% Cole
+%	\addplot[
+%	    only marks,mark=*, mark size=2pt,red,
+%	] coordinates {(6, 1e5)};
+%	\addplot[
+%	    only marks, mark=*, mark size=2pt,blue,
+%	] coordinates { (6, 5e3)};
+%	% Cole
+%	\addplot[
+%	    only marks,mark=square*, mark size=2pt,red,
+%	] coordinates {(19, 5e6)};
+%	\addplot[
+%	    only marks, mark=square*, mark size=2pt,blue,
+%	] coordinates { (19, 3e3)};
+%	% Alsing
+%	\addplot[
+%	    only marks,mark=triangle*, mark size=2pt,red,
+%	] coordinates {(6, 5e4)};
+%	\addplot[
+%	    only marks, mark=triangle*, mark size=2pt,blue,
+%	] coordinates { (6, 1e3)};
+%	% Peregrine
+%	\addplot[
+%	    only marks,mark=diamond*, mark size=2pt,red,
+%	] coordinates {(15, 44e6)};
+%	\addplot[
+%	    only marks, mark=diamond*, mark size=2pt,blue,
+%	] coordinates { (15, 72e4)};
+%	% LISA gw
+%	\addplot[
+%	    only marks,mark=pentagon*, mark size=2pt,red,
+%	] coordinates {(11, 6.41e7)};
+%	\addplot[
+%	    only marks, mark=pentagon*, mark size=2pt,blue,
+%	] coordinates { (11, 1e6)};
+%	% 21 cm
+%	\addplot[
+%	    only marks,mark=asterisk, mark size=2pt,red,
+%	] coordinates {(2, 1e5)};
+%	\addplot[
+%	    only marks, mark=asterisk, mark size=2pt,blue,
+%	] coordinates { (2, 1e4)};
+
+
 	\end{loglogaxis}
 \end{tikzpicture}
 

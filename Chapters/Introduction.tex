@@ -12,38 +12,38 @@ In order to refine theoretical models, it is essential to perform the inverse pr
 In astrophysics, this iterative cycle between prediction and inference is particularly challenging due to the complex nature of the systems under study. In this field, countless statistical methods have been developed over the years, and although rarely in the spotlight, they ultimately determine what is accepted as scientifically established truth. Since an inefficient or incorrect use of statistical data analysis may lead to weaker or entirely wrong conclusions, it is thus of the utmost importance to identify where and how progress is possible in order to advance the field. 
 
 
-
 \section{Astrophysical data analysis challenges}\label{sec:astro}
 
-We are at the dawn of a data-driven era in astrophysics and cosmology, as we can see from Figure~\ref{fig:intro-data}. The coming decade will see transformative science conducted by recent and upcoming observatories, based both on the ground (\eg\ Rubin-LSST \cite{LSSTDarkEnergyScience:2012kar}, ELT \cite{Simon:2019aa}), and space-based missions (\eg\ JWST \citep{Gardner:2006ky}, Euclid \cite{Refregier:2010ss}). 
+We are at the dawn of a data-driven era in astrophysics and cosmology. As we can see from Figure~\ref{fig:intro-data}, that shows the minimum volume of data per year expected to be produced by a range of recent and upcoming surveys and experiments, the coming decade will see transformative science conducted by observatories, based both on the ground (\eg\ Rubin-LSST \cite{LSSTDarkEnergyScience:2012kar}, ELT \cite{Simon:2019aa}), and space-based missions (\eg\ JWST \citep{Gardner:2006ky}, Euclid \cite{Refregier:2010ss}). Crucially, this wealth of data promises unprecedented high-precision measurements of the growth of structure and geometry of the universe, opening new windows to dark matter \cite{Cirelli:2024ssz, drlicawagner2022reporttopicalgroupcosmic}, dark energy \cite{Mortonson:2013zfa, Huterer:2017buf}, neutrino physics \cite{Boyarsky:2012rt, SajjadAthar:2021prg}, and inflationary cosmology \cite{Baumann:2009ds, Achucarro:2022qrl}.
 
+Given the unprecedented size and detail of these data, connecting theoretical models with this wealth of high-precision observations presents significant challenges, and the scientific return of many upcoming observations is expected to be limited by the efficiency of our statistical inference tools \cite{AlvesBatista:2021eeu, Green:2022hhj}. First, information must be optimally extracted from the data to avoid discarding valuable insights. Second, uncertainties must be correctly treated and thoroughly propagated to ensure accurate scientific statements. Moreover, fully exploiting this data for scientific purposes will require increasingly complex physical models, which bring along higher computational costs, as well as a larger number of uncertain parameters, including those characterizing signal and background systematics. Hence, the need for principled and scalable statistical analyses has never been more critical (for recent reviews on statistical analysis developments in cosmology and astrophysics see Refs.~\cite{Trotta:2017wnx, verde2010statistical, feigelson2021twenty}).
 
-Astrophysical data will increase not only in quantity, but also in complexity and detail, promising unprecedented high-precision measurements of the growth of structure and geometry of the universe. This will open new windows to dark matter, dark energy, neutrino physics, inflationary cosmology, and gravity tests. 
-
-Correspondingly, the sophis- tication of our statistical analysis tools has to keep up: increasingly, the limiting factor of our knowledge about the Universe is not the amount of data we have, but rather our ability of analyse, interpret and make sense of them.
-Given the ever-increasing complexity of astroparticle physics observations, the scientific return of many upcoming observations and experiments is expected to be limited by the efficiency and sophistication of our statistical inference tools [1234
-
-
-
-\cite{verde2010statistical, feigelson2021twenty, Trotta:2017wnx}
-
-Given the unprecedented size and detail of these data, connecting theoretical models with this wealth of high-precision observations presents significant challenges. First, information must be optimally extracted from the data to avoid discarding valuable insights. Second, uncertainties must be correctly treated and thoroughly propagated to ensure accurate scientific statements. Hence, the need for principled statistical analyses has never been more critical. Maximizing information extraction from future experiments, and making robust scientific statements with well quantified uncertainties, are crucial for our ability to uncover new physics. Fully exploiting this data for scientific purposes will require increasingly detailed and complex physical models, which bring along higher computational costs, as well as a larger number of uncertain parameters, including those characterizing signal and background systematics. Developing corresponding theoretical and computational tools to address these challenges for the statistical analysis of astrophysical data is the focus of this thesis.
-
-Z\begin{figure}
+\begin{figure}
     \centering
 	\includegraphics[width=\linewidth]{INTRO-data.png}
-    \caption{The graphic shows rough estimates for the minimum expected volume of data per year in petabytes for a range of current and upcoming experiments and surveys in astroparticle physics and cosmology. Note that both the data volume and start dates are indicative; the plot is intended to give a general overview of the current and future data analysis challenges of the field. The figure is a reproduction of Figure 12 in Ref.~\cite{AlvesBatista:2021eeu}}
+    \caption{The graphic shows rough estimates for the minimum expected volume of data per year in petabytes for a range of current and upcoming experiments and surveys in astrophysics and cosmology. Note that both the data volume and start dates are indicative; the plot is intended to give a general overview of the current and future data analysis challenges of the field. The figure and caption are a reproduction of Figure 12 in Ref.~\cite{AlvesBatista:2021eeu}}
     \label{fig:intro-data}
 \end{figure}
 
+To get a glimpse of the types of challenges astrophysical data analysis is currently facing, we will now discuss on a high-level some exemplary problems. The selected topics cover only a small part of the current astrophysical statistical analysis challenges, and reflect the works presented in this thesis. %This introductory discussion will serve as their initial motivation, but when relevant, a connection to other statistical problems in physics will be made. 
 
 
+\paragraph{Strong gravitational lensing}
+ - challenges: very large number of degenerate parameters, mixture of parameter inference, object detection, and image reconstruction problem.
+        
 
 
+\paragraph{Cosmology}
+    - Field level inference
+     non-linear transformations, mixing of spatial structure,
+     
+     nowledge of the primordial matter density field from which the present non-linear observations formed is of fundamental importance for cosmology, as it contains an immense wealth of information about the physics, evolution, and initial conditions of the universe. Reconstructing this density field from the galaxy survey data is a notoriously difficult task, requiring sophisticated statistical methods, advanced cosmological simulators, and exploration of a multi-million-dimensional parameter space.
+     
 
-
-
-
+\paragraph{Point-source in sky maps} 
+A striking example of how having higher-resolution data calls for more complex models that needs to account for more objects, hence more parameters, hence harder inference, is given by the evolution of $\gamma$-ray observations in the galactic plane. Starting with SAS-2 satellites (1972-1073), 6 $\gamma$-ray sources and the diffuse emission were identified \cite{Sas26ps, sas2}. Two decades later, with EGRET (1991-2000), it was possible to identify up to 188 $\gamma$-ray sources, extended point sources, and resolve gas emission \cite{Casandjian:2008ky}. With Fermi-LAT \cite{Fermi-LAT:2022byn}, we have now more than 6600  $\gamma$-ray sources, highly resolved gas maps, many extended sources, the detection of the Fermi bubbles \cite{dobler2010fermi}, and an unidentified component, the so called GeV excess \cite{Goodenough:2009gk}. A physical model to describe this type of data can require, \eg, $\mathcal{O}(10^4)$ parameters for the point sources alone. Moreover, some of its components have an unclear uncertainty quantification (\eg\ the gas maps). For this type of data, the statistical analysis can be thought of as a mixture of source detection and image analysis, and requires self-consistent measurement of point-source population parameters based on both on detected and undetected objects.
+          
+The common thread behind these physical systems and their statistical challenges is that they are formally representable by large models, with the adjective ``large" describing three different properties at the same time: their complexity (in terms of number of components and potentially intricate interactions between them), their volume (in terms of observational data), and the computational resources (in terms of power, memory, and time) needed to solve them. In recent years, new classes of scalable, fast, and computational-efficient inference algorithms have been enabled by breakthroughs in machine learning \cite{Murphy:book}, which could play a major role in the successful analysis of these types of astrophysical data.
 
 
 \clearpage
@@ -51,10 +51,10 @@ Z\begin{figure}
 
 Over the years, in order to draw scientific conclusions, an abundance of statistical tools and physics simulation codes have been developed within the community.\footnote{An extensive list of the tools used in astrophysics, cosmology, and high energy physics can be found here: \url{https://github.com/nikosarcevic/HEP-ASTRO-COSMO}.}
 In particular, \emph{physics simulators} have always served as powerful predictive devices, mapping model parameters into realized data by reproducing numerically the underlying natural phenomenon of interest.
-In recent years, remarkable progress in computing technologies and programming languages have made it possible to express increasingly detailed and complex physical models through high-fidelity computer simulators. However, while simulators excel at predicting system behaviors, they are poorly suited for statistical inference and for solving inverse problems. 
+Recently, remarkable progress in computing technologies and programming languages have made it possible to express increasingly detailed and complex physical models through high-fidelity computer simulators. However, while simulators excel at predicting system behaviors, they are poorly suited for statistical inference and for solving inverse problems. 
 Broadly speaking, to evaluate the likelihood of a data realization implicitly defined through a computer simulator one must solve an inverse problem that involves integrating all possible code paths, for all possible simulator configurations, that could have potentially led to the observed data realization. Clearly, as the fidelity and detail of modern computer simulations increase, computing this quantity becomes exceedingly difficult, if not entirely intractable or computationally infeasible  \cite{Cranmer:2019eaq}. 
 
-Fortunately, recent advances in deep learning \cite{lecun2015deep} and differentiable programming \cite{baydin2018automatic} have led to the emergence and proliferation of a \emph{simulation-based inference paradigm} that can effectively tackle the above challenges. By leveraging the power of neural networks, these new methods can approximate the complex relationships within simulators, allowing for efficient solutions to inverse problems that were previously beyond reach \cite{Cranmer:2019eaq}. This paradigm shift in statistical analysis has led to the proliferation of tools for simulation-based inference \cite[\eg][]{Alsing:2019xrx, tejero-cantero2020sbi, Miller2022, lampe} and to their application to various problems in gravitational waves astronomy \cite[\eg][]{Dax:2021tsq, Crisostomi:2023tle, kolmus2024tuning, Dimitriou:2023knw, Vilchez:2024qnw, Bhardwaj:2023xph, Alvey:2023naa, Alvey:2023npw}, strong gravitational lensing analysis \cite[\eg][]{Montel:2022fhv, Wagner-Carena:2020yun, Wagner-Carena:2022mrn, wagnercarena2024strong, Coogan:2022cky, Brehmer:2019jyt, Zhang:2022djp}, cosmological probes \cite[\eg][]{List:2023aa, Tucci:2023bag, Alsing:2019xrx, Modi:2023drt, Makinen:2021nly, DES:2024xij, Jeffrey:2020aa, vonWietersheim-Kramsta:2024cks, Cole:2021gwr, FrancoAbellan:2024tbj, Saxena:2023tue, Karchev:2022xyn, Karchev:2024stw}, and many other astrophysical problems \cite[\eg][]{AnauMontel:2022ppb, Barret:2024kvc, vasist2023neural, Hahn:2022nda, khullar2022digs, Mishra-Sharma:2021oxe, Christy:2024hou, Hermans:2020skz, albatross, Berteaud:2024zda, Mishra-Sharma:2021nhh}.
+Fortunately, recent advances in deep learning \cite{lecun2015deep} and differentiable programming \cite{baydin2018automatic} have led to the emergence and proliferation of a \emph{simulation-based inference paradigm} that can effectively tackle the above challenges. By leveraging the power of neural networks, these new methods can approximate the complex relationships within simulators, allowing for efficient solutions to inverse problems that were previously beyond reach \cite{Cranmer:2019eaq}. This paradigm shift in statistical analysis has led to the proliferation of tools for simulation-based inference \cite[\eg][]{Alsing:2019xrx, tejero-cantero2020sbi, Miller2022, lampe} and to their application to various problems in gravitational waves astronomy \cite[\eg][]{Dax:2021tsq, Crisostomi:2023tle, kolmus2024tuning, Dimitriou:2023knw, Vilchez:2024qnw, Bhardwaj:2023xph, Alvey:2023naa, Alvey:2023npw}, strong gravitational lensing analysis \cite[\eg][]{Montel:2022fhv, Wagner-Carena:2020yun, Wagner-Carena:2022mrn, wagnercarena2024strong, Coogan:2022cky, Brehmer:2019jyt, Zhang:2022djp}, cosmological probes \cite[\eg][]{List:2023aa, Tucci:2023bag, Alsing:2019xrx, Modi:2023drt, Makinen:2021nly, DES:2024xij, Jeffrey:2020aa, vonWietersheim-Kramsta:2024cks, Cole:2021gwr, FrancoAbellan:2024tbj, Saxena:2023tue, Karchev:2022xyn, Karchev:2024stw}, and many other astrophysical problems \cite[\eg][]{AnauMontel:2022ppb, Barret:2024kvc, vasist2023neural, Hahn:2022nda, khullar2022digs, Mishra-Sharma:2021oxe, Christy:2024hou, Hermans:2020skz, Alvey:2023pkx, Berteaud:2024zda, Mishra-Sharma:2021nhh}.
 
 We will see more in depth in Chapter~\ref{cha:sbi} the technical details of the various simulation-based inference algorithms, showing how they can improve the quality of insight we can gain from simulations, maximizing information extraction from data, and providing robust uncertainty quantification for scientific statements. In the next introductory section, we will focus on providing the context and motivation for this paradigm shift, comparing it to the likelihood-based paradigm, and highlighting how it can help in tackling some of the challenges discussed previously in Section~\ref{sec:astro}.
 
@@ -82,7 +82,7 @@ Lastly, it is worth mentioning \gls*{vi}, which, differently from the previously
 
 \subsubsection{Simulation-based methods}
 
-Differently from \gls*{lbi} methods, \gls*{sbi} entirely relies on samples from a stochastic simulator that maps model parameters $\param$ to data $\data$. This mapping is equivalent to sampling from the model distribution $\data \sim p(\data\mid\param)$, which is effectively an implicit representation of the likelihood. As a result, in this setting one just need a computational code that generates random samples from $p(\data\mid\param)$, that can be later used by a \gls*{sbi} algorithm. For the purpose of this thesis, a \emph{simulator/forward model} is a computer program that takes as input a vector of parameters $\param \in \mathbb{R}^D$, samples a series of internal states or latent variables, and finally produces a data vector  $\data$  as output (usually our observable). Programs that involve random samplings and are interpreted as statistical models are known as probabilistic programs, and simulators are an example \cite{Cranmer:2019eaq}. In principle, using simulators allows for the simultaneous inclusion of all relevant processes that can affect the data, regardless of whether a full probabilistic description is tractable or not, as long as they can be efficiently programmed. In this context, \emph{intractability} means one of two things: a closed-form expression of the likelihood distribution is not available, or even if available it is computationally too expensive, \eg\, in the worst case, it scales exponentially with the number of parameters \cite{Leclercq:2018who, Mootoovaloo:2020ott}.
+Differently from \gls*{lbi} methods, \gls*{sbi} entirely relies on samples from a stochastic simulator that maps model parameters $\param$ to data $\data$. This mapping is equivalent to sampling from the model distribution $\data \sim p(\data\mid\param)$, which is effectively an implicit representation of the likelihood. As a result, in this setting one just need a computational code that generates random samples from $p(\data\mid\param)$, that can be later used by a \gls*{sbi} algorithm. For the purpose of this thesis, a \emph{simulator/forward model} is a computer program that takes as input a vector of parameters $\param \in \mathbb{R}^D$, samples a series of internal states or latent variables, and finally produces a data vector  $\data$  as output (usually our observable). Programs that involve random samplings and are interpreted as statistical models are known as probabilistic programs, and simulators are an example \cite{Cranmer:2019eaq}. In principle, using simulators allows for the simultaneous inclusion of all relevant processes that can affect the data, regardless of whether a full probabilistic description is tractable or not, as long as they can be efficiently programmed. In this context, \emph{intractability} means one of two things: a closed-form expression of the likelihood distribution is not available, or even if available it is computationally too expensive, \eg, in the worst case, it scales exponentially with the number of parameters \cite{Leclercq:2018who, Mootoovaloo:2020ott}.
 
 A more detailed exploration of the various \gls*{sbi} algorithms is presented in Chapter~\ref{cha:sbi}, we will now focus on the main high-level differences between \gls*{lbi} and \gls*{sbi}, drawing from the literature to highlight \gls*{sbi} advancements over \gls*{lbi} methods.
 
@@ -111,25 +111,126 @@ While in principle the two frameworks converge to the same answer, when applied 
 
 On the other hand, one key aspect of \gls*{sbi} algorithms in general is their ability to \emph{directly estimate marginal posteriors}, instead of having to first estimate the joint posterior over all parameter space, and then marginalize out nuisance parameters. A clear example of this property can be found in Ref.~\cite{Miller:2020hua}, where both \gls*{sbi} and and a nested sampler are used to sample from an ``eggbox" posterior with $D=14$ dimensions with over $10^4$ modes: the nested sample requires at least $10^7$ samples, whereas \gls*{sbi} needs three order of magnitude less samples to directly estimate the 1-dimensional and 2-dimensional marginal posteriors for the 14 parameters \cite[Figure 2 in][]{Miller:2020hua}. 
 
+A second illustrative example of this property can be found in Ref.~\cite{Cole:2021gwr}. Analyzing cosmic microwave background data, they used \gls*{sbi} to directly estimate marginal posteriors for the six cosmological parameters of interest, while directly marginalizing over the thirteen varying nuisance parameters present in the analysis. The \gls*{sbi} analysis required only $3\times10^3$ simulations, while to obtain the same results using \gls*{mcmc} with the Planck likelihood required $5\times10^6$ simulations (since the \gls*{mcmc} must sample all the nineteen parameters). 
+
+This, and many other comparative analysis of \gls*{sbi} and \gls*{lbi} methods, can be found in Figure~\ref{fig:sbi-lbi-lit}. The figure is meant as a very simplified comparison of \gls*{lbi} and \gls*{sbi} algorithms in the space of number of required simulations (or computational time to run the analysis) versus number of model parameters. Each work addresses different physics applications, each with its own set of challenges and variations, employing diverse types of analysis to solve them. Therefore, each reported scatter point is unique and achieve the reported scaling thanks to different properties of the various \gls*{sbi} and \gls*{lbi} algorithms employed in the specific study. The main take-away message from the plot is that, in general, \gls*{sbi} techniques are extremely scalable and simulation efficient with respect to \gls*{lbi} as a function of model parameters. One of the main reason, except for the fast evaluation time of neural networks, is their possibility to directly estimate marginal probabilities. This effectively means that we can use \gls*{sbi} algorithms to break down large problems into smaller ones, while coherently accounting for the uncertainties coming from the rest of the parameter space (as further detailed in Section~\ref{subsec:tmnre-m}). In the next chapter, we will get deeper into the technical details of \gls*{sbi} and illustrate more reasons why these techniques are promising for pushing the boundaries of the curse of dimensionality compared to likelihood-based methods (Figure~\ref{fig:sbi-lbi-cost}).
+
+\begin{figure}
+\centering
+\begin{tikzpicture}
+	\begin{loglogaxis}[
+		width=10cm, height=6cm,
+        xmin=1, xmax=1e2,
+        ymin=1, ymax=1e9,
+        axis line style={black},
+        xlabel={{Number of parameters}},
+        ylabel={{Number of simulations}},
+        tick align=inside,
+        minor tick style={draw=none},
+        legend style={draw=none}
+	]
+%	\fill [blue!30, opacity=0.3] 
+%		(axis cs:1, 9000) --
+%		(axis cs:1e8, 9000) --
+%		(axis cs:1e8, 1e8) --
+%		(axis cs:1, 1e8) --
+%		cycle;
+%	\node [blue, align=center] at (axis cs:5e5, 5e4) {Simulation-based inference};
+%	\fill [red!30,, opacity=0.3]
+%		(axis cs:1, 1e8) --
+%		(axis cs:81e2, 1e8) --
+%		(axis cs:1, 2e2) --
+%		cycle;
+%	\node [red, align=center, rotate=38] at (axis cs:4e1, 4e5) {Likelihood-based\\inference};
+	% Legend entries
+	\addlegendimage{mark=-,red,only marks,mark size=0}
+	\addlegendentry{\color{red}LBI}
+	\addlegendimage{mark=-,blue,only marks,mark size=0}
+	\addlegendentry{\color{blue}SBI}
+	\addlegendimage{mark=*,black,only marks,mark size=2}
+	\addlegendentry{Ref.~\cite{Cole:2021gwr}}
+	\addlegendimage{mark=square*,black,only marks,mark size=2}
+	\addlegendentry{Ref.~\cite{Cole:2021gwr}}
+	\addlegendimage{mark=triangle*,black,only marks,mark size=2}
+	\addlegendentry{Ref.~\cite{Alsing:2019xrx}}
+	\addlegendimage{mark=diamond*,black,only marks,mark size=2}
+	\addlegendentry{Ref.~\cite{Bhardwaj:2023xph}}
+	\addlegendimage{mark=pentagon*,black,only marks,mark size=2}
+	\addlegendentry{Ref.~\cite{Vilchez:2024qnw}}
+	\addlegendimage{mark=asterisk,black,only marks,mark size=2}
+	\addlegendentry{Ref.~\cite{Saxena:2023tue}}
+	% Cole
+	\addplot[
+	    only marks,mark=*, mark size=2pt,red,
+	] coordinates {(6, 1e5)};
+	\addplot[
+	    only marks, mark=*, mark size=2pt,blue,
+	] coordinates { (6, 5e3)};
+	% Cole
+	\addplot[
+	    only marks,mark=square*, mark size=2pt,red,
+	] coordinates {(19, 5e6)};
+	\addplot[
+	    only marks, mark=square*, mark size=2pt,blue,
+	] coordinates { (19, 3e3)};
+	% Alsing
+	\addplot[
+	    only marks,mark=triangle*, mark size=2pt,red,
+	] coordinates {(6, 5e4)};
+	\addplot[
+	    only marks, mark=triangle*, mark size=2pt,blue,
+	] coordinates { (6, 1e3)};
+	% Peregrine
+	\addplot[
+	    only marks,mark=diamond*, mark size=2pt,red,
+	] coordinates {(15, 44e6)};
+	\addplot[
+	    only marks, mark=diamond*, mark size=2pt,blue,
+	] coordinates { (15, 72e4)};
+	% LISA gw
+	\addplot[
+	    only marks,mark=pentagon*, mark size=2pt,red,
+	] coordinates {(11, 6.41e7)};
+	\addplot[
+	    only marks, mark=pentagon*, mark size=2pt,blue,
+	] coordinates {(11, 1e6)};
+	% 21 cm
+	\addplot[
+	    only marks,mark=asterisk, mark size=2pt,red,
+	] coordinates {(2, 1e5)};
+	\addplot[
+	    only marks, mark=asterisk, mark size=2pt,blue,
+	] coordinates { (2, 1e4)};
+	
+%	- https://arxiv.org/pdf/2403.14750 17 param (lambdacdm + nuisance)
+%    - swyft 1.5 h
+%    - 3 days mcmc
+%- https://arxiv.org/pdf/2404.15402 kids sbi
+%    - 20 min
+%    - 280 min    
+    
+	\end{loglogaxis}
+\end{tikzpicture}
+\caption{Simplified comparison of likelihood-based and simulation-based algorithms in the space of number of required simulations versus number of model parameters. Each work addresses different physics applications, each with its own set of challenges and variations, employing diverse types of analysis to solve them. Therefore, each reported scatter point is unique and achieve the reported scaling thanks to different properties of the various \gls*{sbi} and \gls*{lbi} algorithms employed in the specific study.}
+\label{fig:sbi-lbi-lit}
+\end{figure}
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.9\linewidth]{TikZ/curse_of_dim.pdf}
+    \includegraphics[width=0.8\linewidth]{TikZ/curse_of_dim.pdf}
 	\caption{Simplified comparison of likelihood-based and simulation-based algorithms in the space of number of required simulations versus number of model parameters. In general, the simulation requirements of likelihood-based techniques grows significantly with the number of model parameters (curse of dimensionality). Instead, simulation-based inference techniques can, in principle, directly focus on estimating marginal posteriors for parameters of interest, independently of the total number of parameters. This reduces the need for parameter reduction techniques and enables the comparison of complex simulation results with complex data. The figure is adapted from Figure 4 in Ref.~\cite{Boddy:2022knd}.}
     \label{fig:sbi-lbi-cost}
 \end{figure}
 
-A second illustrative example of this property can be found in Ref.~\cite{Cole:2021gwr}. Analyzing cosmic microwave background data, they used \gls*{sbi} to directly estimate marginal posteriors for the six cosmological parameters of interest, while directly marginalizing over the thirteen varying nuisance parameters present in the analysis. The \gls*{sbi} analysis required only $3\times10^3$ simulations, while to obtain the same results using \gls*{mcmc} with the Planck likelihood required $5\time10^6$ simulations (since the \gls*{mcmc} must sample all the nineteen parameters). 
-
-This, and many other comparative analysis of \gls*{sbi} and \gls*{lbi} methods, can be found in Figure~\ref{fig:sbi-lbi-cost}. The figure is meant as a very simplified comparison of \gls*{lbi} and \gls*{sbi} algorithms in the space of number of required simulations (or computational time to run the analysis) versus number of model parameters. Each work addresses different physics applications, each with its own set of challenges and variations, employing diverse types of analysis to solve them. Therefore, each reported scatter point is unique and achieve the reported scaling thanks to different properties of the various \gls*{sbi} and \gls*{lbi} algorithms employed in the specific study. The main take-away message from the plot is that, in general, \gls*{sbi} techniques are extremely scalable and simulation efficient with respect to \gls*{lbi} as a function of model parameters. One of the main reason, except for the fast evaluation time of neural networks, is their possibility to directly estimate marginal probabilities. This effectively means that we can use \gls*{sbi} algorithms to break down large problems into smaller ones, while coherently accounting for the uncertainties coming from the rest of the parameter space (as further detailed in Section~\ref{subsec:tmnre-m}). In the next chapter, we will get deeper into the technical details of \gls*{sbi} and illustrate more reasons why these techniques are promising for pushing the boundaries of the curse of dimensionality compared to likelihood-based methods.
 
 
 \section{Outline}
-This thesis aims to contribute to the ongoing effort to transition towards simulation-based inference techniques in astrophysics and cosmology, emphasizing some of the tremendous opportunities that this transition brings. To this end, this thesis first proposes a general simulation-based ecosystem for astrophysical data analysis (Chapter~\ref{cha:sbi}). Then, it illustrate its capabilities through three exemplary applications to astrophysics: 
-\begin{itemize}[leftmargin=1cm]
-	\item the analysis of strong gravitational lenses as a dark matter probe in Chapters~\ref{cha:lensing} and \ref{cha:anre}, 
-	\item the reconstruction of cosmological initial conditions from late-time density fields in Chapter~\ref{cha:cosmo}, 
-	\item and the analysis of point-sources in sky-maps in Chapter~\ref{cha:detection}. 
+
+This thesis aims to contribute to the ongoing effort to transition towards simulation-based inference techniques in astrophysics and cosmology, emphasizing some of the tremendous opportunities that this transition brings. To this end, this thesis first proposes a general simulation-based ecosystem for astrophysical data analysis (Chapter~\ref{cha:sbi}). Then, it illustrate its capabilities through exemplary applications to three challenging astrophysical problems, as motivated in Section~\ref{sec:astro}: 
+\begin{itemize}[align=left, leftmargin=1cm]
+	\item[{\makebox[3.2cm]{Chapters~\ref{cha:lensing} and \ref{cha:anre}: \hfill}}] The analysis of strong gravitational lenses as a dark matter {\makebox[2.45cm]{}} probe.
+	\item[{\makebox[3.2cm]{Chapter~\ref{cha:cosmo}: \hfill}}] The reconstruction of cosmological initial conditions from late-{\makebox[2.45cm]{}}time density fields.
+	\item[{\makebox[3.2cm]{Chapter~\ref{cha:detection}: \hfill}}] The analysis of point-sources in sky-maps. 
 \end{itemize}
 Overall, it aims to highlight the potential for fast, flexible, and testable simulation-based algorithms to facilitate scientific discovery in astrophysics and cosmology, at the dawn of their data-driven era, and forward.
 
