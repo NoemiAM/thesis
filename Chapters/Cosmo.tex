@@ -23,7 +23,7 @@ Recently, machine learning methods such as convolutional neural networks \cite{S
 
 \section{Methodology} \label{sec:cosmo-method}
 
-We structure our methodology as follows. First, in Section~\ref{subsec:cosmo-setup}, we set up the problem in terms of a simple hierarchical field simulator. We then introduce this work's main contribution: autoregressive gaussian likelihood estimation (Section~\ref{subsec:cosmo-auto}) and high-dimensional gaussian posterior sampling through GEDA (Section~\ref{subsec:cosmo-geda})
+We structure our methodology as follows. First, in Section~\ref{subsec:cosmo-setup}, we set up the problem in terms of a simple hierarchical field simulator. We then introduce this work's main contribution: autoregressive gaussian likelihood estimation (Section~\ref{subsec:cosmo-auto}) and high-dimensional gaussian posterior sampling through GEDA (Section~\ref{subsec:cosmo-geda}).
 
 
 \subsection{Problem setup} \label{subsec:cosmo-setup}
@@ -171,58 +171,58 @@ Let us consider just one element $i$ and drop the index $i$ for simplicity of no
     \begin{pmatrix}
     s-\mu_s \\
     l-\mu_l \\ 
-    z-\mu_z \\
+    \theta-\mu_\theta \\
     \end{pmatrix}^T\hspace{-3mm}
     \underbrace{
     \begin{pmatrix}
-    \Sigma_{ss} & \Sigma_{sl} & \Sigma_{sz} \\
-    \Sigma_{ls} & \Sigma_{ll} & \Sigma_{lz} \\
-    \Sigma_{zs} & \Sigma_{zl} & \Sigma_{zz}
+    \Sigma_{ss} & \Sigma_{sl} & \Sigma_{s\theta} \\
+    \Sigma_{ls} & \Sigma_{ll} & \Sigma_{l\theta} \\
+    \Sigma_{\theta s} & \Sigma_{\theta l} & \Sigma_{\theta \theta}
     \end{pmatrix}^{-1}}_{
     \equiv Q' = 
     \begin{pmatrix}
-    Q'_{ss} & Q'_{sl} & Q'_{sz} \\
-    Q'_{ls} & Q'_{ll} & Q'_{lz} \\
-    Q'_{zs} & Q'_{zl} & Q'_{zz}
+    Q'_{ss} & Q'_{sl} & Q'_{s\theta} \\
+    Q'_{ls} & Q'_{ll} & Q'_{l\theta} \\
+    Q'_{\theta s} & Q'_{\theta l} & Q'_{\theta \theta}
     \end{pmatrix}
     }\hspace{-3mm}
     \begin{pmatrix}
     s-\mu_s \\
     l-\mu_l \\ 
-    z-\mu_z 
+    \theta-\mu_\theta 
     \end{pmatrix}
     +\frac12
     \begin{pmatrix}
     l-\mu_l \\ 
-    z-\mu_z 
+    \theta-\mu_\theta
     \end{pmatrix}^T\hspace{-3mm}
     \underbrace{\begin{pmatrix}
-    \Sigma_{ll} & \Sigma_{lz} \\
-    \Sigma_{zl} & \Sigma_{zz}
+    \Sigma_{ll} & \Sigma_{l\theta} \\
+    \Sigma_{\theta l} & \Sigma_{\theta \theta}
     \end{pmatrix}^{-1}}_{
     \equiv Q'' = 
         \begin{pmatrix}
-    Q''_{ll} & Q''_{lz} \\
-    Q''_{zl} & Q''_{zz}
+    Q''_{ll} & Q''_{l\theta} \\
+    Q''_{\theta l} & Q''_{\theta \theta}
     \end{pmatrix}\;
     }\hspace{-3mm}
     \begin{pmatrix}
     l-\mu_l \\ 
-    z-\mu_z
+    \theta-\mu_\theta
     \end{pmatrix} 
     \;.
 \end{split}
 \end{equation}
 
-For a specific observation $\data$ we can compute $\bm s$ and therefore $\bm l$, hence individual components $s$ and $l$ (where we have dropped the index $i$). We can then read off the expression in Equation~\ref{eq:cosmo-matrix} the terms that depend on $z$. We group the rest into an irrelevant constant $C(s)$.
-In this way, the \textit{quadratic term} in $z$ in Equation~\ref{eq:cosmo-matrix} is
+For a specific observation $\data$ we can compute $\bm s$ and therefore $\bm l$, hence individual components $s$ and $l$ (where we have dropped the index $i$). We can then read off the expression in Equation~\ref{eq:cosmo-matrix} the terms that depend on $\theta$. We group the rest into an irrelevant constant $C(s)$.
+In this way, the \textit{quadratic term} in $\theta$ in Equation~\ref{eq:cosmo-matrix} is
 \begin{flalign*}
-        -\frac12 Q_{zz}z^2 &\quad\text{with}\quad Q_{zz} \equiv Q'_{zz} - Q''_{zz} \;.
+        -\frac12 Q_{\theta \theta}\theta^2 &\quad\text{with}\quad Q_{\theta \theta} \equiv Q'_{\theta \theta} - Q''_{\theta \theta} \;.
 \end{flalign*}
-Each $Q_{zz}$ is a diagonal entry of $\bm Q_\text{like}$ in Equation~\ref{eq:cosmo-likelihood}, while non-diagonal components are 0 by construction. In principle, correlations between pixels in the data $\data$ can be modeled and we plan to explore it in future work.
-The \textit{linear term} in $z$ in Equation~\ref{eq:cosmo-matrix} is
+Each $Q_{\theta \theta}$ is a diagonal entry of $\bm Q_\text{like}$ in Equation~\ref{eq:cosmo-likelihood}, while non-diagonal components are 0 by construction. In principle, correlations between pixels in the data $\data$ can be modeled and we plan to explore it in future work.
+The \textit{linear term} in $\theta$ in Equation~\ref{eq:cosmo-matrix} is
 \begin{equation}
-    b  \equiv \left[-(s-\mu_s) Q'_{sz} -(l-\mu_l) Q_{lz} + \mu_z Q_{zz}\right] \;.
+    b  \equiv \left[-(s-\mu_s) Q'_{s\theta} -(l-\mu_l) Q_{l\theta} + \mu_\theta Q_{\theta \theta}\right] \;.
 \end{equation}
 Each component $b$ composes the likelihood linear term $\bm b$.
     
