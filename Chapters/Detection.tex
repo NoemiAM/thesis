@@ -176,13 +176,13 @@ $.
 In the process, we trained four ratio estimation networks that are directly connected with traditional source analysis pipeline components: $ r_1(\Omega, F_{th}; \data)$ performs source detection; $r_2(d; F, \Omega, \data)$ is the source sensitivity function; $ r_3(\interest; \data\mid \mathbb{I}_{\data_o}(\vec{\boldsymbol{s}}_{det})=1)$ constraints $\interest$ based on sub-threshold sources (because detected sources are assumed to be fixed in the parameter space where $\mathbb{I}_{\data_o}(\vec{\boldsymbol{s}}_{det})=1$); and $r_4(\vec{\boldsymbol{s}}_{det}; \interest)$ constraints $\interest$ using the detected sources catalog.
 We show a schematic overview of the inference framework used in this work in Figure~\ref{fig:ps-graphic}.
 
-\begin{figure}
+\begin{sidewaysfigure}
     \centering
     \includegraphics[width=\linewidth]{PS-graphic.pdf}
     \caption{Illustration of our inference framework (see Section~\ref{sec:ps-method} for details). \textit{Left panel}: A source detection network $r_1$ and the corresponding sensitivity network $r_2$ are trained based on the full simulation model. \textit{Right panel}: Bright sources are constrained in the truncated simulation model, while sub-threshold sources vary freely.  Two inference networks are trained to capture information from sub-threshold sources ($r_3$) and detected sources ($r_4$).
     }
     \label{fig:ps-graphic}
-\end{figure}
+\end{sidewaysfigure}
 
 
 \section{Experiment}

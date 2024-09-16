@@ -32,12 +32,12 @@ We introduce the slice sampling component because neural ratio estimators do not
 \vspace{10pt}
  \textbf{Code.} We release a publicly available implementation of the autoregressive ratio estimator model in the \gls*{tmnre} package \texttt{swyft}\footnote{\url{https://github.com/undark-lab/swyft}}, and an implementation of the slice-based nested sampler in \texttt{torchns}\footnote{\url{https://github.com/undark-lab/torchns}}.
 
-
 \section{Methodology} \label{sec:anre-method}
 
  Up to now, applications of \gls*{tmnre} have typically focused on estimating low-dimensional ($d \lesssim 2$) marginal posteriors. On the other hand, whilst correlations between two parameters can always be estimated by training an appropriate ratio estimator, doing this for all pairwise combinations of a large number of parameters becomes quickly infeasible. Furthermore, even if it were done, two-dimensional correlations do not provide any information about higher order correlations since they are just projections. In certain scenarios, this might be crucial for calibrating the quality and accuracy of the inference methods and strongly motivates the development of techniques able to robustly estimate higher-dimensional posterior distributions.
 
 As discussed in Section~\ref{sec:anre-intro}, however, there are challenges related to both the estimation of high-dimensional ratios and subsequently sampling from them. Here, we propose two new building blocks of the \gls*{tmnre} framework to address these issues: \emph{autoregressive \gls*{nre}} for scalable, multi-dimensional (marginal) posterior estimation, and \emph{slice sampling} to efficiently sample from a multi-dimensional posterior and truncated prior.\footnote{This work has been informed by private communications surrounding a complementary paper in preparation \cite{PolySwyft}.}
+\clearpage
 
 \subsection{Autoregressive Neural Ratio Estimation} \label{subsec:anre-anre}
 
@@ -382,7 +382,8 @@ Figure~\ref{fig:anre-training} shows the loss for order B as a function of epoch
 \section{Gravitational lensing experiment}
 \label{apx:anre-lensing}
 
- In this appendix we provide a more detailed account of the model adopted to generate the strong lensing simulations, the training details, and the employed neural networks to obtain the results presented in Section~\ref{subsec:lensing}.
+In this appendix we provide a more detailed account of the model adopted to generate the strong lensing simulations, the training details, and the employed neural networks to obtain the results presented in Section~\ref{subsec:lensing}.
+\clearpage
 
 \subsection{Simulator}
 

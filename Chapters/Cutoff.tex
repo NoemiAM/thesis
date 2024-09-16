@@ -5,6 +5,7 @@ Precision analysis of galaxy-galaxy strong gravitational lensing images provides
 
 In this chapter, we present the first analysis pipeline to combine parametric lensing models and a recently-developed neural simulation-based inference technique called truncated marginal neural ratio estimation (\gls*{tmnre}) to constrain the warm dark matter halo mass function cutoff scale directly from multiple lensing images. Through a proof-of-concept application to simulated data, we show that our approach enables empirically testable inference of the dark matter cutoff mass through marginalization over a large population of realistic perturbers that would be undetectable on their own, and over lens and source parameters uncertainties. To obtain our results, we combine the signal contained in a set of images with Hubble Space Telescope resolution. Our results suggest that \gls*{tmnre} can be a powerful approach to put tight constraints on the mass of warm dark matter in the multi-keV regime, which will be relevant both for existing lensing data and in the large sample of lenses that will be delivered by near-future telescopes.
 
+\textit{This chapter is based on work from \cite{Montel:2022fhv}.}
 
 
 \section{Introduction} \label{sec:sl-intro}
@@ -383,7 +384,7 @@ For \gls*{los} halos we adopt the same concentration and truncation scale values
 \subsection{Modeling free-streaming effects in WDM}
 \label{subsec:free-streaming}
 
-\begin{figure}
+\begin{sidewaysfigure}
     \centering
     \includegraphics[width=\linewidth]{GL-smoothing.png}
     \caption{
@@ -391,7 +392,7 @@ For \gls*{los} halos we adopt the same concentration and truncation scale values
     In the second to fourth columns, we imitate the effect of \gls*{wdm} with different cutoff masses (as labeled in the titles) via our smoothing scheme. \textit{Bottom}: We show the probability with which \gls*{los} halos do not get smoothed, equal to the ratio between the \gls*{wdm} and the \gls*{cdm} \gls*{hmf} (see Equation~\eqref{eq:cutoff}). The smoothing is stochastic, so for each realization of the smoothing different halos are smoothed.
     }
     \label{fig:smoothing}
-\end{figure}
+\end{sidewaysfigure}
 
 In \gls*{wdm} models \gls*{dm} particles have non-negligible thermal velocities that allow them to free-stream out of density perturbations, effectively preventing small-scale structure formation. The free-streaming effects of \gls*{wdm} are well described in terms of the half-mode wavelength $\lambda_{\mathrm{hm}}$, which corresponds to the scale at which the \gls*{dm} transfer function falls to half the \gls*{cdm} transfer function. We can define the half-mode mass as the mass contained within a radius of the half-mode wavelength:
 \begin{equation}
@@ -533,12 +534,12 @@ While we did not perform a full hyperparameter exploration, we found the batchno
 \subsection{Constraining lens and source parameters}
 \label{subsec:constrain}
 
-\begin{figure*}
+\begin{sidewaysfigure}
 	\centering
 	\includegraphics[width=\linewidth]{GL-bounds.png}
 	\caption{Constrained proposal distribution. Visualization of the sequential truncation of the lens and source proposal distributions over the six rounds of training. The particular target is the first mock image (framed in orange in Figure~\ref{fig:mock}), whose parameters are depicted as black dashed horizontal lines.}
 \label{fig:bounds}
-\end{figure*}
+\end{sidewaysfigure}
 
 \begin{figure}
 	\centering
@@ -547,12 +548,12 @@ While we did not perform a full hyperparameter exploration, we found the batchno
 \label{fig:targeted_data0}
 \end{figure}
 
-\begin{figure*}
+\begin{sidewaysfigure}
 	\centering
 	\includegraphics[width=\linewidth]{GL-lens_source_post.png}
 	\caption{Lens and source parameters posteriors. In solid blue we show the last round of constrained proposal distributions for the first (upper left corner, framed in orange) target image in Figure~\ref{fig:mock}. The dotted black lines correspond to the true lens and source parameters values with which we have generated the target image. In orange, we show the estimated posteriors for lens and source parameters in the last training round. Based on the predetermined threshold, the new bounding limits $\Gamma$ (dashed blue) do not change significantly from the previous constrained proposal distribution region, so it is not possible to constrain the proposal distribution more and we stop the truncation procedure.}
 \label{fig:lens_source_post}
-\end{figure*}
+\end{sidewaysfigure}
 
 We constrain lens and source parameters regions with \gls*{tmnre} (Section~\ref{sec:tmnre}) with multiple sampling and training rounds.
 
