@@ -16,21 +16,25 @@
 
 
 %%%%%%%%%%%%%%%%%%%% Define Packages %%%%%%%%%%%%%%%%%%%%%%%
+\definecolor{myredd}{HTML}{9C2E1C}
+\definecolor{mybluee}{HTML}{406398}
+
 
 \usepackage{ifthen}
 \sloppy
 \usepackage{fancyhdr}
 \usepackage[colorlinks=true
-,urlcolor=dullblue
-,anchorcolor=blue3
-,citecolor=dullblue%MaroonC antiquefuchsia dullpurple dullblue
-,filecolor=blue3
-,linkcolor=darkred
-,menucolor=blue3
-%,pagecolor=blue3
+,urlcolor= mybluee %dullblue
+,anchorcolor=mybluee %blue3
+,citecolor= mybluee %dullblue%MaroonC antiquefuchsia dullpurple 
+,filecolor= mybluee %blue3
+,linkcolor=myredd %darkred
+,menucolor=mybluee %blue3
+,pagecolor=mybluee %blue3
 ,linktocpage=true
 ,pdfproducer=medialab
 ]{hyperref}
+
 \usepackage{booktabs}
 \usepackage[english, american, dutch]{babel}
 \usepackage{cleveref}
@@ -70,6 +74,60 @@
 
 \usetikzlibrary{calc,shadings,patterns,tikzmark,fadings}
 \usepackage{siunitx}
+\usepackage{rotating}    % For rotating figures
+
+%%%%%%%%%%%%%%%%%%%%  Custom rotation %%%%%%%%%%%%%%%%%%%% 
+
+%\makeatletter
+%\def\end@rotdblfloat{%
+%  \end{minipage}\end{lrbox}%
+%  \stepcounter{r@tfl@t}%
+%  \rot@label{RF\ther@tfl@t}%
+%  \rot@pageref{RF\ther@tfl@t}{\R@@page}%
+%  \edef\@tempa{Adding sideways \@captype\space on page \R@@page\space}
+%  \rot@mess@toks\expandafter{\@tempa}
+%  \@tempdima\ht\rot@float@box
+%  \advance\@tempdima by \dp\rot@float@box
+%  \wd\rot@float@box\z@
+%  \ht\rot@float@box\z@
+%  \dp\rot@float@box\z@
+%  \vbox to \textheight{%
+%    \setkeys{Grot}{units=360}%
+%    \if@rot@twoside
+%    \else
+%      \let\R@@page\rot@LR
+%    \fi
+%    \ifthenelse{\isodd{\R@@page}}{%
+%      \ifrot@messages
+%        \if@rot@twoside
+%  \rot@mess@toks\expandafter{\the\rot@mess@toks (right hand page)}%
+%\fi
+%      \fi
+%      \vfill
+%      \@@line{%
+%        \hskip\rotFPtop
+%        \rotatebox{-90}{\box\rot@float@box}%
+%        \hskip\rotFPbot
+%      }%
+%    }{%
+%      \ifrot@messages
+%        \if@rot@twoside
+%  \rot@mess@toks\expandafter{\the\rot@mess@toks (left hand page)}%
+%\fi
+%      \fi%
+%      \@@line{%
+%        \hskip\rotFPbot
+%        \rotatebox{90}{\box\rot@float@box}%
+%        \hskip\rotFPtop
+%      }%
+%      \vfill
+%    }%
+%    \rot@message{\the\rot@mess@toks}%
+%  }%
+%  \end@dblfloat
+%}
+%\makeatother
+
 
 %%%%%%%%%%%%%%%%%%%% Define symbols %%%%%%%%%%%%%%%%%%%%%%%
 
@@ -78,8 +136,6 @@
 
 %% Appendix formatting
 \AtBeginEnvironment{subappendices}{%
-%\chapter*{Appendix}
-%\addcontentsline{toc}{chapter}{Appendices}
 \clearpage
 \section*{\LARGE Appendix}
 \counterwithin{figure}{section}
@@ -106,7 +162,6 @@
 \fontsize{50}{0}\selectfont\thechapter}
 \parbox[b]{\dimexpr\textwidth-\chapnumb\relax}{
 \raggedleft
-%             \hfill{\fontsize{20}{100}\selectfont#1}\\
 				  \hfill{\huge#1 \\[5pt]}
 \rule{\dimexpr\textwidth-\chapnumb\relax}{0.4pt}
 }}      
@@ -124,10 +179,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % ======== Title ========
-\setlength{\belowcaptionskip}{-10pt plus 3pt minus 2pt}
 \interfootnotelinepenalty=10000
 \usepackage{fix-cm}
-\newcommand\HUGE{\@setfontsize\Huge{38}{47}} 
 
 \title{{\Huge \sffamily Simulation-based inference for astrophysical data \\[5pt]}}
 
@@ -164,11 +217,12 @@
 
 \newcommand{\todo}[1]{\textcolor{teal}{[\textbf{TO DO:} #1]}}
 
+
 % ======== Cover ========
 \begin{document}
 \selectlanguage{english}
 {
-%\includepdf[fitpaper]{Cover.pdf}
+%\includepdf[fitpaper]{Tikz/cover-file.pdf}
 \let\cleardoublepage\clearpage
 \frontmatter
 	\maketitle
@@ -190,19 +244,18 @@
 \include{chapters/Detection}
 \include{chapters/Conclusions}
 
-% ======== Backmatter ========
-\backmatter
-\selectlanguage{english}
-\summary{Summary}{\input{Summary}}
-\summary{Samenvatting}{\input{Samenvatting}}
-%\acknowledgements{Acknowledgements}{\input{Acknowledgements}}
-
 % ======== Bibliography ========
 \newpage
 \phantomsection
 \bibliographystyle{utphys}
 \bibliography{thesis}
+
+% ======== Backmatter ========
+\backmatter
+\selectlanguage{english}
+\summary{Summary}{\input{Summary}}
+\summary{Samenvatting}{\input{Samenvatting}}
+\acknowledgements{Acknowledgements}{\input{Acknowledgements}}
+
 \end{document}
-
-
 
