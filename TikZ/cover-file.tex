@@ -7,32 +7,32 @@
 \begin{document}
 \begin{tikzpicture}
 
-% 10.7mm spline thickness
-
-%\fill[white] (0,0) rectangle (350.7mm,240mm); %plus 1cm on the border
-\fill[black] (-10mm,-10mm) rectangle (360.7mm,250mm); %plus 1cm on the border
+% 11.2mm spline thickness
+% 350.7 --> 351.2 / 360.7mm --> 361.2 / 370.7 --> 371.2 / 180.7mm --> 181.2
+%\fill[white] (0,0) rectangle (351.2mm,240mm); %plus 1cm on the border
+\fill[black] (-10mm,-10mm) rectangle (361.2mm,250mm); %plus 1cm on the border
 
 \draw[very thick] (0,-2) -- (0,-1.5);
 \draw[very thick] (-2,0) -- (-1.5,0);
 \draw[very thick] (0,260mm) -- (0,255mm);
 \draw[very thick] (-2,240mm) -- (-1.5,240mm);
-\draw[very thick] (370.7mm,0) -- (365.7mm,0);
-\draw[very thick] (350.7mm,-2) -- (350.7mm,-1.5);
-\draw[very thick] (370.7mm,240mm) -- (365.7mm,240mm);
-\draw[very thick] (350.7mm,260mm) -- (350.7mm,255mm);
+\draw[very thick] (371.2mm,0) -- (366.2mm,0);
+\draw[very thick] (351.2mm,-2) -- (351.2mm,-1.5);
+\draw[very thick] (371.2mm,240mm) -- (366.2mm,240mm);
+\draw[very thick] (351.2mm,260mm) -- (351.2mm,255mm);
 \draw[very thick] (170mm,-2) -- (170mm,-1.5);
-\draw[very thick] (180.7mm,-2) -- (180.7mm,-1.5);
+\draw[very thick] (181.2mm,-2) -- (181.2mm,-1.5);
 \draw[very thick] (170mm,260mm) -- (170mm,255mm);
-\draw[very thick] (180.7mm,260mm) -- (180.7mm,255mm);
+\draw[very thick] (181.2mm,260mm) -- (181.2mm,255mm);
 
-\node at (175.35mm,120mm) {\includegraphics[height=260mm]{Cover.pdf}}; %width=370.7mm
+\node at (175.6mm,120mm) {\includegraphics[height=260mm]{Cover.pdf}}; %width=371.2mm
 
-\node at (267.2mm,200mm) [black,scale=1.2] {\fontsize{30}{30}\selectfont\textsc{Simulation-based inference}};
-\node at (267.2mm,185mm) [black,scale=1.2] {\fontsize{30}{30}\selectfont\textsc{for astrophysical data}};
-\node at (267.2mm,35mm) [black] {\fontsize{16}{2.5}\selectfont\textsc{Noemi Anau Montel}};
+\node at (266.2mm,200mm) [black,scale=1.2] {\fontsize{30}{30}\selectfont\textsc{Simulation-based inference}};
+\node at (266.2mm,185mm) [black,scale=1.2] {\fontsize{30}{30}\selectfont\textsc{for astrophysical data}};
+\node at (266.2mm,35mm) [black] {\fontsize{16}{2.5}\selectfont\textsc{Noemi Anau Montel}};
 
-\node at (175.35mm,163mm) [black,rotate=270] {\fontsize{14}{2.5}\selectfont\textsc{Simulation-based inference for astrophysical data}};
-\node at (175.35mm,45mm) [black,rotate=270] {\fontsize{12}{2.5}\selectfont\textsc{Noemi Anau Montel}};
+\node at (175.6mm,163mm) [black,rotate=270] {\fontsize{14}{2.5}\selectfont\textsc{Simulation-based inference for astrophysical data}};
+\node at (175.6mm,45mm) [black,rotate=270] {\fontsize{12}{2.5}\selectfont\textsc{Noemi Anau Montel}};
 
 \end{tikzpicture}
 \end{document}
